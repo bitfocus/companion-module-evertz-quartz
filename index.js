@@ -31,12 +31,14 @@ class instance extends instance_skel {
 		this.config = config
 
 		this.init_tcp()
+		this.config.needNameRefresh = true
 	}
 
 	init() {
 		this.init_presets()
 		this.init_tcp()
 		this.initVariables()
+		this.config.needNameRefresh = true
 	}
 
 	initVariables() {
@@ -45,6 +47,74 @@ class instance extends instance_skel {
 		]
 		this.setVariableDefinitions(variables)
 		this.setVariable('destination', 0)
+	}
+
+	readNames() {
+		// called when connected after init and config update
+		// runs async so the response is handled in separate function parseQuartzResponse()
+		this.destinations = []
+		this.sources = []
+		this.log('info', 'Refreshing names from router')
+		
+		// build string to read destinations
+		let cmd = ''
+		for (let i = 1; i <= this.config.max_destinations; i++) {
+			cmd += '.RD' + i + '\r'
+		}
+		
+		// build string to read sources
+		for (let i = 1; i <= this.config.max_sources; i++) {
+			cmd += '.RS' + i + '\r'
+		}
+		
+		let sendBuf = Buffer.from(cmd, 'latin1')
+		this.log('debug', 'Sending command: ' + cmd)
+		this.debug('Sending command:', cmd)
+
+		if (this.socket !== undefined && this.socket.connected) {
+			this.socket.send(sendBuf)
+		} else {
+			this.debug('Socket not connected :(')
+		}
+	
+		this.config.needNameRefresh = false
+	}
+
+	parseQuartzResponse(data) {
+		// responses may be fragmented in multiple packets
+		// wait until we have a complete response contained between . and \r
+
+		this.response += data.toString('utf-8')
+
+		if (this.response.slice(0,1) == '.' && this.response.slice(-1) == '\r') {
+			// we now have all the pieces
+			let lines = this.response.split('\r')
+			for (let i = 0; i < lines.length; i++) {
+				let line = lines[i]
+				if (line) {
+					if (line.slice(0,4) == '.RAD') {
+						// destination name
+						let id = line.split(',')[0].slice(4)
+						let label = line.split(',')[1]
+						this.destinations.push({id: id, label: '[' + id + '] ' + label})
+					}
+					else if (line.slice(0,4) == '.RAS') {
+						// source name
+						let id = line.split(',')[0].slice(4)
+						let label = line.split(',')[1]
+						this.sources.push({id: id, label: '[' + id + '] ' + label})
+					}
+					else if (line == '.E') {
+						this.log('error', 'Received error from Evertz.  Are maximums too high?')
+					}
+				}
+			}
+			this.response = ''
+		}
+
+		this.actions() // rebuild names tables
+		// this.debug('destinations', this.destinations)
+		// this.debug('sources', this.sources)
 	}
 		
 	init_tcp() {
@@ -71,10 +141,11 @@ class instance extends instance_skel {
 			this.socket.on('connect', () => {
 				this.status(this.STATE_OK)
 				this.debug('Connected')
+				if (this.config.needNameRefresh) { this.readNames() }
 			})
 
 			this.socket.on('data', (data) => {
-				this.debug('Received data:', data.toString('utf-8'))
+				this.parseQuartzResponse(data)
 			})
 		}
 	}
@@ -87,15 +158,31 @@ class instance extends instance_skel {
 				id: 'host',
 				label: 'Target IP',
 				width: 6,
-				regex: this.REGEX_IP,
+				regex: this.REGEX_IP
 			},
 			{
 				type: 'textinput',
 				id: 'port',
 				label: 'Target Port',
 				width: 3,
-				default: 4050,
-				regex: this.REGEX_PORT,
+				default: 23,
+				regex: this.REGEX_PORT
+			},
+			{
+				type: 'number',
+				id: 'max_destinations',
+				label: 'Max Destinations',
+				width: 4,
+				default: 100,
+				required: true
+			},
+			{
+				type: 'number',
+				id: 'max_sources',
+				label: 'Max Sources',
+				width: 4,
+				default: 100,
+				required: true
 			}
 		]
 	}
@@ -116,26 +203,24 @@ class instance extends instance_skel {
 
 	actions(system) {
 		this.setActions({
-			setxpt: {
+			set_xpt: {
 				label: 'Route source to destination',
 				options: [
 					{
-						type: 'number',
+						type: 'dropdown',
 						id: 'src',
 						label: 'Source:',
-						width: 1,
-						min: 1,
-						max: 9999,
-						required: true
+						width: 6,
+						required: true,
+						choices: this.sources
 					},
 					{
-						type: 'number',
+						type: 'dropdown',
 						id: 'dst',
 						label: 'Destination:',
-						width: 1,
-						min: 1,
-						max: 9999,
-						required: true
+						width: 6,
+						required: true,
+						choices: this.destinations
 					},
 					{
 						type: 'textinput',
@@ -144,7 +229,7 @@ class instance extends instance_skel {
 						width: 6,
 						default: 'V',
 						required: true
-					}
+					},
 				]
 			},
 
@@ -152,12 +237,13 @@ class instance extends instance_skel {
 				label: 'Select destination',
 				options: [
 					{
-						type: 'number',
+						type: 'dropdown',
 						id: 'dst',
 						label: 'Destination:',
 						width: 3,
-						required: true
-					}
+						required: true,
+						choices: this.destinations
+					},
 				]
 			},
 			
@@ -165,11 +251,12 @@ class instance extends instance_skel {
 				label: 'Route source to previous selected destination',
 				options: [
 					{
-						type: 'number',
+						type: 'dropdown',
 						id: 'src',
 						label: 'Source:',
 						width: 3,
-						required: true
+						required: true,
+						choices: this.sources
 					},
 					{
 						type: 'textinput',
@@ -188,9 +275,8 @@ class instance extends instance_skel {
 		let cmd
 		
 		switch (action.action) {
-			case 'setxpt':
+			case 'set_xpt':
 				cmd = '.S' + action.options.levels + action.options.dst + ',' + action.options.src + '\r'
-				this.debug(cmd)
 				break
 			
 			case 'set_destination':
@@ -212,14 +298,13 @@ class instance extends instance_skel {
 		 * and destroys the 'binary' content
 		 */
 		let sendBuf = Buffer.from(cmd, 'latin1')
-		this.debug('cmd', cmd)
+		this.log('debug', 'Sending command: ' + cmd)
+		this.debug('Sending command:', cmd)
 
-		if (sendBuf != '') {
-			if (this.socket !== undefined && this.socket.connected) {
-				this.socket.send(sendBuf)
-			} else {
-				this.debug('Socket not connected :(')
-			}
+		if (this.socket !== undefined && this.socket.connected) {
+			this.socket.send(sendBuf)
+		} else {
+			this.debug('Socket not connected :(')
 		}
 	}
 }
