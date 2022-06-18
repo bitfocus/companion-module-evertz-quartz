@@ -1,0 +1,22 @@
+{
+  "name": "evertz-quartz",
+  "version": "1.0.0",
+  "description": "Module to control Evertz EQX routers using Quartz protocol",
+  "manufacturer": "Evertz",
+  "product": "EQX Router",
+  "shortname": "Quartz",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Elliott C. Balsley <ebalsley@netflix.com>",
+  "license": "MIT",
+  "bugs": {
+		"url": "https://github.com/bitfocus/companion-module-evertz-quartz/issues"
+  },
+  "homepage": "https://github.com/bitfocus/companion-module-evertz-quartz#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bitfocus/companion-module-evertz-quartz.git"
+  }
+}
