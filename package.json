@@ -4,6 +4,7 @@
   "description": "Module to control Evertz EQX routers using Quartz protocol",
   "manufacturer": "Evertz",
   "product": "EQX Router",
+  "keywords": "",
   "shortname": "Quartz",
   "main": "index.js",
   "scripts": {
