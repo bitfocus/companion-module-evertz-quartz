@@ -9,11 +9,14 @@ Multiple levels can be set at once, for example `VABC` routes video and first 3 
 
 **Available commands in this module**
 
+* Fire a salvo
 * Route source to destination
 * Set destination
 * Route source to previous selected destination
 
 The latter two actions work together to build a traditional router control panel, so you can first press the destination and then press the source to make the route.
+Here you will find a way to see the salvo ID's without having to download the active config file. (http://MAGNUMIPHERE/magnum/controls/listPreset)
+You have to be logged in to access the listPreset.
 
 **Config options**
 
