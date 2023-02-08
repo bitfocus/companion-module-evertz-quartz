@@ -1,6 +1,6 @@
 {
   "name": "evertz-quartz",
-  "version": "1.0.3",
+  "version": "1.0.2",
   "description": "Module to control Evertz EQX routers using Quartz protocol",
   "manufacturer": "Evertz",
   "product": "EQX Router",
