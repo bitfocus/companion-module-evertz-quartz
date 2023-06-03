@@ -203,6 +203,20 @@ class instance extends instance_skel {
 
 	actions(system) {
 		this.setActions({
+			
+			fire_salvo: {
+				label: 'Fire Salvo',
+				options: [
+					{
+						type: 'textinput',
+						id: 'salvo',
+						label: 'Salvo ID:',
+						width: 6,
+						required: true
+					},
+				]
+			},
+
 			set_xpt: {
 				label: 'Route source to destination',
 				options: [
@@ -275,6 +289,11 @@ class instance extends instance_skel {
 		let cmd
 		
 		switch (action.action) {
+			// fire salvo test
+			case 'fire_salvo':
+				cmd = '.F' + action.options.salvo + '\r'
+				break
+			// end of fire salvo test
 			case 'set_xpt':
 				cmd = '.S' + action.options.levels + action.options.dst + ',' + action.options.src + '\r'
 				break
