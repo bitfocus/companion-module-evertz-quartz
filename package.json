@@ -1,23 +1,23 @@
 {
-  "name": "evertz-quartz",
-  "version": "1.0.2",
-  "description": "Module to control Evertz EQX routers using Quartz protocol",
-  "manufacturer": "Evertz",
-  "product": "EQX Router",
-  "keywords": [],
-  "shortname": "Quartz",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "Elliott C. Balsley <ebalsley@netflix.com>",
-  "license": "MIT",
-  "bugs": {
-		"url": "https://github.com/bitfocus/companion-module-evertz-quartz/issues"
-  },
-  "homepage": "https://github.com/bitfocus/companion-module-evertz-quartz#readme",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/bitfocus/companion-module-evertz-quartz.git"
-  }
+	"name": "evertz-quartz",
+	"version": "2.0.0",
+	"main": "index.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1",
+		"format": "prettier -w .",
+		"lint:raw": "eslint --ext .ts --ext .js --ignore-pattern dist --ignore-pattern pkg",
+		"lint": "yarn lint:raw ."
+	},
+	"license": "MIT",
+	"dependencies": {
+		"@companion-module/base": "~1.10.0"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/bitfocus/companion-module-evertz-quartz.git"
+	},
+	"devDependencies": {
+		"@companion-module/tools": "^2.0.0",
+		"prettier": "^3.3.2"
+	}
 }
