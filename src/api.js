@@ -45,6 +45,8 @@ module.exports = {
 	},
 
 	async readNames() {
+		let self = this
+		
 		// called when connected after init and config update
 		// runs async so the response is handled in separate function parseQuartzResponse()
 		self.log('info', 'Refreshing Names from Router')
