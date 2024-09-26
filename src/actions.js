@@ -106,10 +106,15 @@ module.exports = {
 			],
 			callback: async function (action) {
 				let options = action.options
-				self.selectedDestination = options.destination
+				let destination = options.destination
+				self.selectedDestination = destination
+
+				//get the name from CHOICES_DESTINATIONS based on the ID
+				let destination_name = self.CHOICES_DESTINATIONS.find((element) => element.id == destination).label
 
 				let variableObj = {}
-				variableObj.destination = options.destination
+				variableObj.destination = destination
+				variableObj.destination_name = destination_name
 				self.setVariableValues(variableObj)
 			},
 		}
