@@ -29,7 +29,7 @@ module.exports = {
 			options: [
 				{
 					type: 'dropdown',
-					id: 'destination',
+					id: 'dst',
 					label: 'Destination',
 					width: 6,
 					default: self.CHOICES_DESTINATIONS[0].id,
@@ -50,7 +50,7 @@ module.exports = {
 			callback: async function (action) {
 				let options = action.options
 				let lock = options.lock
-				let command = `.B${lock},${options.destination}`
+				let command = `.B${lock},${options.dst}`
 				self.sendCommand(command)
 			},
 		}
@@ -87,7 +87,7 @@ module.exports = {
 			callback: async function (action) {
 				let options = action.options
 				let levels = await self.parseVariablesInString(options.levels)
-				let command = `.S${levels}${options.destination},${options.source}`
+				let command = `.S${levels}${options.dst},${options.src}`
 				self.sendCommand(command)
 			},
 		}
@@ -143,7 +143,7 @@ module.exports = {
 			callback: async function (action) {
 				let options = action.options
 				let levels = await self.parseVariablesInString(options.levels)
-				let command = `.S${levels}${self.selectedDestination},${options.source}`
+				let command = `.S${levels}${self.selectedDestination},${options.src}`
 				self.sendCommand(command)
 			},
 		}
