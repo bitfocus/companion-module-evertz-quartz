@@ -3,7 +3,7 @@
 	"name": "evertz-quartz",
 	"shortname": "quartz",
 	"description": "Module to control Evertz EQX routers using Quartz protocol",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/bitfocus/companion-module-evertz-quartz.git",
 	"bugs": "https://github.com/bitfocus/companion-module-evertz-quartz/issues",
@@ -15,6 +15,10 @@
 		{
 			"name": "Elliott C. Balsley",
 			"email": "ebalsley@netflix.com"
+		},
+		{
+			"name": "Carlos Emilio Puente",
+			"email": "Carlos.Puente@nbcuni.com"
 		}
 	],
 	"legacyIds": [],

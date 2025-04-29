@@ -119,6 +119,86 @@ module.exports = {
 			},
 		}
 
+		actions['set_destination_take'] = {
+			name: 'Select Destination for Take',
+			description: 'Set the destination for routing with the Take Action',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'dst',
+					label: 'Destination:',
+					width: 3,
+					required: true,
+					choices: self.CHOICES_DESTINATIONS, // Assuming self.CHOICES_DESTINATIONS contains the list of destinations
+				},
+			],
+			callback: async function (action) {
+				let options = action.options
+				let destination = options.dst
+		
+				// Save the selected destination in the correct variable
+				self.setVariableValues({ dst: destination })
+		
+				// Optionally log the action for debugging
+				self.log('info', `Selected Destination for Take: ${destination}`)
+			},
+		}
+		
+		actions['set_source_take'] = {
+			name: 'Select Source for Take',
+			description: 'Set a source for routing with the Take Action',
+			options: [
+				{
+					type: 'dropdown',
+					id: 'src',
+					label: 'Source:',
+					width: 3,
+					required: true,
+					choices: self.CHOICES_SOURCES, // Assuming self.CHOICES_SOURCES contains the list of sources
+				},
+			],
+			callback: async function (action) {
+				let options = action.options
+				let source = options.src
+		
+				// Save the selected source in the correct variable
+				self.setVariableValues({ src: source })
+		
+				// Optionally log the action for debugging
+				self.log('info', `Selected Source for Take: ${source}`)
+			},
+		}
+
+		actions['take'] = {
+			name: 'Take',
+			description: 'Execute a Take action to route the selected source to the selected destination',
+			options: [
+				{
+					type: 'textinput',
+					id: 'levels',
+					label: 'Levels:',
+					width: 6,
+					default: 'VABCDEFGH',
+					required: true,
+					useVariables: true,
+				},
+			],
+			callback: async function (action) {
+				let options = action.options
+				let levels = await self.parseVariablesInString(options.levels) // Parse levels for variables
+				let dst = self.getVariableValue('dst') // Retrieve the selected destination for Take
+				let src = self.getVariableValue('src') // Retrieve the selected source for Take
+		
+				if (dst && src) {
+					let command = `.S${levels}${dst},${src}` // Construct the command
+					self.sendCommand(command) // Send the command
+					self.log('info', `Take action executed: ${command}`) // Log the command
+				} else {
+					self.log('error', 'Take action failed: Source or Destination not set') // Log error if variables are missing
+				}
+			},
+		}
+
 		actions['route_source'] = {
 			name: 'Route Source to Selected Destination',
 			description: 'Route a Source to previously selected Destination',
