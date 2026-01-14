@@ -1,153 +1,247 @@
+/**
+ * @fileoverview TCP Connection Management for Evertz Quartz Module
+ * 
+ * This module handles the TCP socket lifecycle for communicating with
+ * Evertz routers. It provides connection management, reconnection logic,
+ * and raw data transmission without any protocol-specific knowledge.
+ * 
+ * Protocol parsing and framing is handled by the quartz.js module.
+ * 
+ * @module api
+ * @author Companion Module Contributors
+ * @see {@link https://github.com/bitfocus/companion-module-evertz-quartz}
+ */
+
 const { InstanceStatus, TCPHelper } = require('@companion-module/base')
 
+/**
+ * Connection management methods
+ * 
+ * These methods are mixed into the main instance class via Object.assign().
+ * They handle TCP socket lifecycle and provide hooks for the main module
+ * to respond to connection events.
+ * 
+ * @mixin
+ */
 module.exports = {
+	/**
+	 * Initializes the TCP connection to the router
+	 * 
+	 * Creates a new TCP socket, sets up event handlers, and attempts
+	 * to connect to the configured host and port. Cleans up any existing
+	 * connection before establishing a new one.
+	 * 
+	 * @async
+	 * @returns {Promise<void>}
+	 * 
+	 * @fires socket#connect
+	 * @fires socket#data
+	 * @fires socket#error
+	 * @fires socket#close
+	 */
 	async initConnection() {
-		let self = this
+		const self = this
 
-		//clear any existing intervals
-		clearInterval(self.INTERVAL)
+		// Clean up existing connection and intervals
+		self._cleanupConnection()
 
-		if (self.config.host && self.config.host !== '') {
-			self.updateStatus(InstanceStatus.Connecting)
+		// Validate configuration
+		if (!self.config.host || self.config.host === '') {
+			self.log('warn', 'No host configured')
+			self.updateStatus(InstanceStatus.BadConfig)
+			return
+		}
 
-			self.socket = new TCPHelper(self.config.host, self.config.port)
+		self.updateStatus(InstanceStatus.Connecting)
 
-			self.socket.on('error', (error) => {
-				self.log('error', error)
-				self.updateStatus(InstanceStatus.UnknownError)
-			})
+		// Create new TCP socket
+		self.socket = new TCPHelper(self.config.host, self.config.port)
 
-			self.socket.on('connect', () => {
-				self.updateStatus(InstanceStatus.Ok)
-				self.getData() //get initial data
-				//start polling, if enabled
-				if (self.config.polling) {
-					self.INTERVAL = setInterval(() => {
-						self.getData()
-					}, self.config.pollInterval)
-				}
-			})
+		// Handle connection errors
+		self.socket.on('error', (error) => {
+			self._handleConnectionError(error)
+		})
 
-			self.socket.on('data', (data) => {
-				self.processData(data)
-			})
+		// Handle successful connection
+		self.socket.on('connect', () => {
+			self._handleConnectionOpen()
+		})
 
-			self.socket.on('close', () => {
-				self.updateStatus(InstanceStatus.ConnectionFailure)
-			})
+		// Handle incoming data - pass raw data to handler
+		self.socket.on('data', (data) => {
+			self._handleData(data)
+		})
+
+		// Handle connection close
+		self.socket.on('close', () => {
+			self._handleConnectionClose()
+		})
+	},
+
+	/**
+	 * Cleans up the existing connection and related resources
+	 * 
+	 * Clears polling intervals and destroys the socket if it exists.
+	 * Called before establishing a new connection or during shutdown.
+	 * 
+	 * @private
+	 * @returns {void}
+	 */
+	_cleanupConnection() {
+		const self = this
+
+		// Clear polling interval
+		if (self.INTERVAL) {
+			clearInterval(self.INTERVAL)
+			self.INTERVAL = null
+		}
+
+		// Clear reconnect interval
+		if (self.RECONNECT_INTERVAL) {
+			clearInterval(self.RECONNECT_INTERVAL)
+			self.RECONNECT_INTERVAL = null
+		}
+
+		// Destroy existing socket
+		if (self.socket) {
+			self.socket.destroy()
+			self.socket = null
+		}
+
+		// Reset parser state if it exists
+		if (self.parser) {
+			self.parser.reset()
 		}
 	},
 
-	getData() {
-		let self = this
-
-		self.readNames()
+	/**
+	 * Handles socket connection errors
+	 * 
+	 * Logs the error and updates the instance status.
+	 * 
+	 * @private
+	 * @param {Error} error - The error that occurred
+	 * @returns {void}
+	 */
+	_handleConnectionError(error) {
+		const self = this
+		self.log('error', `Connection error: ${error.message}`)
+		self.updateStatus(InstanceStatus.ConnectionFailure)
 	},
 
-	async readNames() {
-		let self = this
-		
-		// called when connected after init and config update
-		// runs async so the response is handled in separate function parseQuartzResponse()
-		self.log('info', 'Refreshing Names from Router')
+	/**
+	 * Handles successful socket connection
+	 * 
+	 * Updates status, triggers initial data fetch, and starts
+	 * polling at the configured interval.
+	 * 
+	 * @private
+	 * @returns {void}
+	 */
+	_handleConnectionOpen() {
+		const self = this
 
-		// build string to read destinations
-		let cmd = ''
-		for (let i = 1; i <= self.config.max_destinations; i++) {
-			cmd += '.RD' + i + '\r'
-		}
+		self.log('info', `Connected to ${self.config.host}:${self.config.port}`)
+		self.updateStatus(InstanceStatus.Ok)
 
-		// build string to read sources
-		for (let i = 1; i <= self.config.max_sources; i++) {
-			cmd += '.RS' + i + '\r'
-		}
+		// Trigger initial data retrieval
+		self.onConnected()
 
-		self.sendCommand(cmd)
+		// Start polling - convert seconds to milliseconds
+		const intervalMs = (self.config.pollInterval || 5) * 1000
+		self.INTERVAL = setInterval(() => {
+			self.poll()
+		}, intervalMs)
 	},
 
-	async processData(data) {
-		let self = this
-
-		// responses may be fragmented in multiple packets
-		// wait until we have a complete response contained between . and \r
-
-		self.response += data.toString('utf-8')
+	/**
+	 * Handles incoming socket data
+	 * 
+	 * Passes raw data to the protocol parser. Optionally logs
+	 * the data if verbose logging is enabled.
+	 * 
+	 * @private
+	 * @param {Buffer} data - Raw data received from socket
+	 * @returns {void}
+	 */
+	_handleData(data) {
+		const self = this
 
 		if (self.config.verbose) {
-			self.log('debug', 'Received data: ' + self.response)
+			self.log('debug', `Received raw data: ${data.toString('utf-8')}`)
 		}
 
-		if (self.response.slice(0, 1) == '.' && self.response.slice(-1) == '\r') {
-			// we now have all the pieces
-			if (self.config.verbose) {
-				self.log('debug', 'Received complete response: ' + self.response)
-			}
-
-			let TEMP_DESTINATIONS = []
-			let TEMP_SOURCES = []
-
-			let lines = self.response.split('\r')
-			for (let i = 0; i < lines.length; i++) {
-				let line = lines[i]
-				if (line) {
-					if (line.slice(0, 4) == '.RAD') {
-						// destination name
-						let id = line.split(',')[0].slice(4)
-						let label = line.split(',')[1]
-						TEMP_DESTINATIONS.push({ id: id, label: '[' + id + '] ' + label })
-					} else if (line.slice(0, 4) == '.RAS') {
-						// source name
-						let id = line.split(',')[0].slice(4)
-						let label = line.split(',')[1]
-						TEMP_SOURCES.push({ id: id, label: '[' + id + '] ' + label })
-					} else if (line == '.E') {
-						self.log('error', 'Received error from Evertz.  Are maximums too high?')
-					}
-				}
-			}
-
-			self.response = '' // clear response buffer
-
-			let update = false
-
-			// update destinations and sources, if they are different
-			if (JSON.stringify(TEMP_DESTINATIONS) !== JSON.stringify(self.CHOICES_DESTINATIONS)) {
-				//and temp is not empty
-				if (TEMP_DESTINATIONS.length > 0) {
-					self.CHOICES_DESTINATIONS = TEMP_DESTINATIONS
-					update = true
-				}
-			}
-
-			if (JSON.stringify(TEMP_SOURCES) !== JSON.stringify(self.CHOICES_SOURCES)) {
-				//and temp is not empty
-				if (TEMP_SOURCES.length > 0) {
-					self.CHOICES_SOURCES = TEMP_SOURCES
-					update = true
-				}
-			}
-
-			if (update) {
-				self.initActions()
-			}
+		// Pass data to protocol parser (handled in index.js)
+		if (self.parser) {
+			self.parser.feed(data)
 		}
 	},
 
+	/**
+	 * Handles socket connection close
+	 * 
+	 * Updates status and could trigger reconnection logic.
+	 * 
+	 * @private
+	 * @returns {void}
+	 */
+	_handleConnectionClose() {
+		const self = this
+		self.log('warn', 'Connection closed')
+		self.updateStatus(InstanceStatus.ConnectionFailure)
+	},
+
+	/**
+	 * Sends a raw command string to the router
+	 * 
+	 * Automatically appends carriage return if not present.
+	 * Logs the command if verbose logging is enabled.
+	 * 
+	 * @async
+	 * @param {string} cmd - Command string to send
+	 * @returns {Promise<boolean>} True if command was sent, false otherwise
+	 * 
+	 * @example
+	 * await self.sendCommand('.RD1')  // Read destination 1 name
+	 * await self.sendCommand('.SV1,5') // Route source 5 to destination 1 on video level
+	 */
 	async sendCommand(cmd) {
-		let self = this
+		const self = this
 
-		//add carriage return, if it doesn't end with that
-		if (cmd.slice(-1) != '\r') {
-			cmd += '\r'
+		// Validate socket state
+		if (!self.socket || !self.socket.isConnected) {
+			self.log('warn', 'Cannot send command: not connected')
+			return false
 		}
 
-		if (self.socket && self.socket.isConnected) {
-			let sendBuf = Buffer.from(cmd, 'latin1')
-			if (self.config.verbose) {
-				self.log('debug', 'Sending command: ' + cmd)
-			}
-			self.socket.send(sendBuf)
-			self.lastCommand = cmd //store the last command for debugging purposes
+		// Ensure command ends with carriage return
+		let command = cmd
+		if (!command.endsWith('\r')) {
+			command += '\r'
 		}
+
+		// Log if verbose
+		if (self.config.verbose) {
+			self.log('debug', `Sending command: ${command.replace(/\r/g, '\\r')}`)
+		}
+
+		// Send command
+		const sendBuffer = Buffer.from(command, 'latin1')
+		self.socket.send(sendBuffer)
+
+		// Store for debugging
+		self.lastCommand = command
+
+		return true
+	},
+
+	/**
+	 * Checks if the socket is currently connected
+	 * 
+	 * @returns {boolean} True if connected, false otherwise
+	 */
+	isConnected() {
+		const self = this
+		return self.socket && self.socket.isConnected
 	},
 }

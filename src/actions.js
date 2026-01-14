@@ -1,7 +1,35 @@
+/**
+ * @fileoverview Action Definitions for Evertz Quartz Router Control
+ * 
+ * Defines Companion actions for controlling Evertz routers via Quartz protocol.
+ * Actions fall into several categories:
+ * 
+ * - Direct routing: Route source to destination immediately
+ * - Selection workflow: Select destination, select source, then take
+ * - System control: Fire salvos, lock/unlock destinations
+ * 
+ * @module actions
+ * @author Companion Module Contributors
+ * @see {@link https://github.com/bitfocus/companion-module-evertz-quartz}
+ */
+
 module.exports = {
+	/**
+	 * Initializes action definitions for the module
+	 * 
+	 * Called during module init and when configuration changes.
+	 * Actions reference CHOICES_DESTINATIONS and CHOICES_SOURCES arrays
+	 * which are populated from router responses.
+	 * 
+	 * @returns {void}
+	 */
 	initActions: function () {
 		let self = this
 		let actions = {}
+
+		// =========================================================================
+		// System Control Actions
+		// =========================================================================
 
 		actions['fire_salvo'] = {
 			name: 'Fire Salvo',
@@ -55,9 +83,13 @@ module.exports = {
 			},
 		}
 
+		// =========================================================================
+		// Direct Routing Actions
+		// =========================================================================
+
 		actions['set_xpt'] = {
 			name: 'Route Source to Destination',
-			description: 'Route a source to a destination',
+			description: 'Route a source to a destination using dropdown selection',
 			options: [
 				{
 					type: 'dropdown',
@@ -92,6 +124,50 @@ module.exports = {
 			},
 		}
 
+		actions['set_xpt_by_id'] = {
+			name: 'Route Source to Destination (by ID)',
+			description: 'Route a source to a destination using numeric IDs with variable support',
+			options: [
+				{
+					type: 'textinput',
+					id: 'src',
+					label: 'Source ID',
+					width: 6,
+					default: '1',
+					useVariables: true,
+				},
+				{
+					type: 'textinput',
+					id: 'dst',
+					label: 'Destination ID',
+					width: 6,
+					default: '1',
+					useVariables: true,
+				},
+				{
+					type: 'textinput',
+					id: 'levels',
+					label: 'Levels',
+					width: 6,
+					default: 'V',
+					useVariables: true,
+				},
+			],
+			callback: async function (action) {
+				let options = action.options
+				let src = await self.parseVariablesInString(options.src)
+				let dst = await self.parseVariablesInString(options.dst)
+				let levels = await self.parseVariablesInString(options.levels)
+				let command = `.S${levels}${dst},${src}`
+				self.sendCommand(command)
+			},
+		}
+
+		// =========================================================================
+		// Selection Workflow Actions
+		// These support the "select destination, then select source, then take" pattern
+		// =========================================================================
+
 		actions['set_destination'] = {
 			name: 'Set Destination',
 			description: 'Set the Destination for the next Source routing',
@@ -109,7 +185,7 @@ module.exports = {
 				let destination = options.destination
 				self.selectedDestination = destination
 
-				//get the name from CHOICES_DESTINATIONS based on the ID
+				// Get the name from CHOICES_DESTINATIONS based on the ID
 				let destination_name = self.CHOICES_DESTINATIONS.find((element) => element.id == destination).label
 
 				let variableObj = {}
@@ -129,7 +205,7 @@ module.exports = {
 					label: 'Destination:',
 					width: 3,
 					required: true,
-					choices: self.CHOICES_DESTINATIONS, // Assuming self.CHOICES_DESTINATIONS contains the list of destinations
+					choices: self.CHOICES_DESTINATIONS,
 				},
 			],
 			callback: async function (action) {
@@ -139,7 +215,6 @@ module.exports = {
 				// Save the selected destination in the correct variable
 				self.setVariableValues({ dst: destination })
 		
-				// Optionally log the action for debugging
 				self.log('info', `Selected Destination for Take: ${destination}`)
 			},
 		}
@@ -154,7 +229,7 @@ module.exports = {
 					label: 'Source:',
 					width: 3,
 					required: true,
-					choices: self.CHOICES_SOURCES, // Assuming self.CHOICES_SOURCES contains the list of sources
+					choices: self.CHOICES_SOURCES,
 				},
 			],
 			callback: async function (action) {
@@ -164,7 +239,6 @@ module.exports = {
 				// Save the selected source in the correct variable
 				self.setVariableValues({ src: source })
 		
-				// Optionally log the action for debugging
 				self.log('info', `Selected Source for Take: ${source}`)
 			},
 		}
@@ -185,16 +259,16 @@ module.exports = {
 			],
 			callback: async function (action) {
 				let options = action.options
-				let levels = await self.parseVariablesInString(options.levels) // Parse levels for variables
-				let dst = self.getVariableValue('dst') // Retrieve the selected destination for Take
-				let src = self.getVariableValue('src') // Retrieve the selected source for Take
+				let levels = await self.parseVariablesInString(options.levels)
+				let dst = self.getVariableValue('dst')
+				let src = self.getVariableValue('src')
 		
 				if (dst && src) {
-					let command = `.S${levels}${dst},${src}` // Construct the command
-					self.sendCommand(command) // Send the command
-					self.log('info', `Take action executed: ${command}`) // Log the command
+					let command = `.S${levels}${dst},${src}`
+					self.sendCommand(command)
+					self.log('info', `Take action executed: ${command}`)
 				} else {
-					self.log('error', 'Take action failed: Source or Destination not set') // Log error if variables are missing
+					self.log('error', 'Take action failed: Source or Destination not set')
 				}
 			},
 		}
