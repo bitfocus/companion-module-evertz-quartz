@@ -1,16 +1,40 @@
+/**
+ * @fileoverview Module Configuration for Evertz Quartz Router Control
+ * 
+ * Defines the configuration fields displayed in Companion's module settings.
+ * These settings control connection parameters, polling behavior, and debugging.
+ * 
+ * @module config
+ * @author Companion Module Contributors
+ * @see {@link https://github.com/bitfocus/companion-module-evertz-quartz}
+ */
+
 const { Regex } = require('@companion-module/base')
 
+/**
+ * Configuration field definitions
+ * 
+ * These methods are mixed into the main instance class via Object.assign().
+ * 
+ * @mixin
+ */
 module.exports = {
+	/**
+	 * Returns the configuration field definitions for the module
+	 * 
+	 * These fields are displayed in Companion's module configuration UI.
+	 * 
+	 * @returns {Object[]} Array of configuration field definitions
+	 */
 	getConfigFields() {
-		let self = this
-
 		return [
+			// Module information header
 			{
 				type: 'static-text',
 				id: 'info',
 				width: 12,
 				label: 'Information',
-				value: 'This modules controls Evertz EQX series routers using the Quartz protocol.',
+				value: 'This module controls Evertz EQX/EQT series routers using the Quartz protocol.',
 			},
 			{
 				type: 'static-text',
@@ -19,6 +43,8 @@ module.exports = {
 				label: ' ',
 				value: '<hr />',
 			},
+
+			// Connection settings
 			{
 				type: 'textinput',
 				id: 'host',
@@ -39,14 +65,18 @@ module.exports = {
 				id: 'hostinfo',
 				width: 5,
 				label: ' ',
-				value: 'The port number is typically 23.',
+				value: 'Other port numbers may be used for Quartz. Check your device manual and configuration settings.',
 			},
+
+			// Router size settings
 			{
 				type: 'number',
 				id: 'max_destinations',
 				label: 'Max Destinations',
 				width: 4,
-				default: 100,
+				default: 16,
+				min: 1,
+				max: 4096,
 				required: true,
 			},
 			{
@@ -54,8 +84,17 @@ module.exports = {
 				id: 'max_sources',
 				label: 'Max Sources',
 				width: 4,
-				default: 100,
+				default: 16,
+				min: 1,
+				max: 4096,
 				required: true,
+			},
+			{
+				type: 'static-text',
+				id: 'sizeinfo',
+				width: 4,
+				label: ' ',
+				value: 'Set to match your router configuration. Higher values increase name query time.',
 			},
 			{
 				type: 'static-text',
@@ -64,31 +103,24 @@ module.exports = {
 				label: ' ',
 				value: '<hr />',
 			},
-			//polling
-			{
-				type: 'checkbox',
-				id: 'polling',
-				label: 'Enable Polling',
-				width: 3,
-				default: false,
-			},
+
+			// Polling settings
 			{
 				type: 'number',
 				id: 'pollInterval',
-				label: 'Polling Interval (ms)',
+				label: 'Polling Interval (seconds)',
 				width: 3,
-				default: 10000,
-				min: 100,
-				max: 60000,
+				default: 5,
+				min: 1,
+				max: 60,
 				required: true,
-				isVisible: (config) => config.polling == true,
 			},
 			{
 				type: 'static-text',
 				id: 'pollinginfo',
-				width: 6,
+				width: 9,
 				label: ' ',
-				value: 'By enabling polling, the module can retrieve the latest data from the router. Currently, it retrieves only the Source and Destination names.',
+				value: 'Polling refreshes source/destination names and crosspoint state periodically. Crosspoints also update in real-time via router notifications.',
 			},
 			{
 				type: 'static-text',
@@ -97,6 +129,31 @@ module.exports = {
 				label: ' ',
 				value: '<hr />',
 			},
+
+			// Variable settings
+			{
+				type: 'checkbox',
+				id: 'enable_xpt_variables',
+				label: 'Expose Crosspoint Variables',
+				width: 4,
+				default: true,
+			},
+			{
+				type: 'static-text',
+				id: 'xptvarinfo',
+				width: 8,
+				label: ' ',
+				value: 'Creates variables for each destination showing the currently routed source (ID and name). Disable for large routers to reduce variable count (2 per destination).',
+			},
+			{
+				type: 'static-text',
+				id: 'hr4',
+				width: 12,
+				label: ' ',
+				value: '<hr />',
+			},
+
+			// Debugging settings
 			{
 				type: 'checkbox',
 				id: 'verbose',
@@ -106,10 +163,10 @@ module.exports = {
 			},
 			{
 				type: 'static-text',
-				id: 'info3',
+				id: 'verboseinfo',
 				width: 9,
 				label: ' ',
-				value: `Enabling Verbose Logging will push all incoming and outgoing data to the log, which is helpful for debugging.`,
+				value: 'Verbose logging outputs all sent and received data to the log, which can be useful for troubleshooting.',
 			},
 		]
 	},
