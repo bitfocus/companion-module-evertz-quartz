@@ -99,4 +99,38 @@ module.exports = {
 	DEFAULT_XPT_LEVEL_SYSTEM,
 	XPT_LEVEL_CHOICES,
 	parseLevelsConfig,
+
+	/**
+	 * Human-readable lock labels for Companion variables / router middleware.
+	 * Maps Quartz .BA status values.
+	 */
+	LockState: {
+		UNLOCKED: 'Unlocked',
+		LOCKED: 'Locked',
+		OWNED: 'Owned',
+	},
+
+	/**
+	 * Converts a Quartz lock status code to a label.
+	 *
+	 * @param {number} status - 0=unlocked, 1-254=panel lock, 255=unprotected lock
+	 * @returns {string}
+	 */
+	lockStatusToLabel(status) {
+		if (status === 0) return 'Unlocked'
+		if (status === 255) return 'Locked'
+		if (status >= 1 && status <= 254) return 'Owned'
+		return 'Unlocked'
+	},
+
+	/**
+	 * Whether a Quartz lock status means the destination is locked.
+	 *
+	 * @param {number|undefined} status
+	 * @returns {boolean}
+	 */
+	isDestinationLocked(status) {
+		return typeof status === 'number' && status !== 0
+	},
 }
+

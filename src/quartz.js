@@ -654,6 +654,20 @@ function buildInterrogateAllCommand(level, maxDestinations) {
 	return cmd
 }
 
+/**
+ * Builds commands to interrogate lock status for all destinations
+ *
+ * @param {number} maxDestinations - Maximum destination ID to query
+ * @returns {string} Formatted Quartz command string
+ */
+function buildLockInterrogateAllCommand(maxDestinations) {
+	let cmd = ''
+	for (let i = 1; i <= maxDestinations; i++) {
+		cmd += `${CommandPrefix.LOCK}I${i}\r`
+	}
+	return cmd
+}
+
 module.exports = {
 	// Classes
 	QuartzParser,
@@ -672,6 +686,7 @@ module.exports = {
 	buildLockCommand,
 	buildUnlockCommand,
 	buildLockInterrogateCommand,
+	buildLockInterrogateAllCommand,
 	buildInterrogateCommand,
 	buildListRoutesCommand,
 	buildInterrogateAllCommand,

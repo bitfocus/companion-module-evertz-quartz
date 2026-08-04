@@ -36,9 +36,10 @@ const {
 	MessageType,
 	buildReadNamesCommand,
 	buildInterrogateAllCommand,
+	buildLockInterrogateAllCommand,
 } = require('./src/quartz')
 
-const { parseLevelsConfig, VALID_LEVELS } = require('./src/constants')
+const { parseLevelsConfig, VALID_LEVELS, lockStatusToLabel } = require('./src/constants')
 
 /**
  * @typedef {Object} ChoiceEntry
@@ -101,6 +102,14 @@ class QuartzInstance extends InstanceBase {
 		 * @type {Object.<string, Object.<number, number>>}
 		 */
 		this.crosspoints = {}
+
+		/**
+		 * Current destination lock status codes from .BA responses
+		 * Structure: { [destination]: status }
+		 * 0=unlocked, 1-254=panel lock, 255=unprotected lock
+		 * @type {Object.<number, number>}
+		 */
+		this.locks = {}
 
 		/**
 		 * Quartz protocol parser instance
@@ -264,10 +273,16 @@ class QuartzInstance extends InstanceBase {
 				this._handleAcknowledge(message)
 				break
 
+			case MessageType.LOCK_STATUS:
+				this._handleLockStatus(message)
+				break
+
 			case MessageType.POWER_UP:
 				this.log('info', 'Router power up or reset detected')
-				// Re-request names after router reset
+				// Re-request state after router reset
 				this._requestNames()
+				this._requestCrosspoints()
+				this._requestLocks()
 				break
 
 			case MessageType.ERROR:
@@ -328,6 +343,31 @@ class QuartzInstance extends InstanceBase {
 		this.setVariableValues({
 			[`src_${message.id}_name`]: message.name,
 		})
+	}
+
+	/**
+	 * Handles a destination lock status message
+	 *
+	 * Updates internal lock state, Companion variables, and feedbacks.
+	 *
+	 * @private
+	 * @param {LockStatusMessage} message - Lock status message (.BA)
+	 * @returns {void}
+	 */
+	_handleLockStatus(message) {
+		const { destination, status } = message
+		this.locks[destination] = status
+
+		const label = lockStatusToLabel(status)
+		this.setVariableValues({
+			[`dst_${destination}_lock_state`]: label,
+		})
+
+		if (this.config.verbose) {
+			this.log('debug', `Lock status: Dest ${destination} = ${label} (${status})`)
+		}
+
+		this.checkFeedbacks('destination_locked')
 	}
 
 	/**
@@ -560,6 +600,7 @@ class QuartzInstance extends InstanceBase {
 
 		this._refreshTimeout = setTimeout(() => {
 			this.initActions()
+			this.initFeedbacks()
 			this._refreshTimeout = null
 		}, 100)
 	}
@@ -576,18 +617,20 @@ class QuartzInstance extends InstanceBase {
 		this.log('info', 'Refreshing data from router')
 		this._requestNames()
 		this._requestCrosspoints()
+		this._requestLocks()
 	}
 
 	/**
 	 * Called on polling interval
 	 * 
-	 * Refreshes names and crosspoint state from the router.
+	 * Refreshes names, crosspoint state, and lock state from the router.
 	 * 
 	 * @returns {void}
 	 */
 	poll() {
 		this._requestNames()
 		this._requestCrosspoints()
+		this._requestLocks()
 	}
 
 	/**
@@ -632,6 +675,17 @@ class QuartzInstance extends InstanceBase {
 	}
 
 	/**
+	 * Requests lock status for all configured destinations
+	 *
+	 * @private
+	 * @returns {void}
+	 */
+	_requestLocks() {
+		const cmd = buildLockInterrogateAllCommand(this.config.max_destinations)
+		this.sendCommand(cmd)
+	}
+
+	/**
 	 * Gets the source currently routed to a destination on a given level
 	 * 
 	 * @param {string} level - Level character (e.g., 'V')
@@ -641,6 +695,17 @@ class QuartzInstance extends InstanceBase {
 	getRoutedSource(level, destination) {
 		const destNum = typeof destination === 'string' ? parseInt(destination, 10) : destination
 		return this.crosspoints[level]?.[destNum]
+	}
+
+	/**
+	 * Gets the lock status code for a destination
+	 *
+	 * @param {number|string} destination - Destination ID
+	 * @returns {number|undefined} Quartz lock status, or undefined if unknown
+	 */
+	getLockStatus(destination) {
+		const destNum = typeof destination === 'string' ? parseInt(destination, 10) : destination
+		return this.locks[destNum]
 	}
 
 	/**

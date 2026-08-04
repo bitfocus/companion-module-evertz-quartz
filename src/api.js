@@ -13,6 +13,7 @@
  */
 
 const { InstanceStatus, TCPHelper } = require('@companion-module/base')
+const { isDestinationLocked } = require('./constants')
 
 /**
  * Connection management methods
@@ -260,6 +261,52 @@ module.exports = {
 		}
 
 		self.log('info', `Route sent: ${routeDesc}`)
+	},
+
+	/**
+	 * Sends a lock/unlock/toggle command with required success/failure logging.
+	 *
+	 * Quartz format is `.BL{dest}` / `.BU{dest}` (no comma).
+	 * Toggle uses the last known lock state for that destination.
+	 * Throws when the command cannot be sent.
+	 *
+	 * @async
+	 * @param {number|string} destination - Destination ID
+	 * @param {string} lockState - 'L' to lock, 'U' to unlock, 'T' to toggle
+	 * @returns {Promise<void>}
+	 */
+	async sendLockCommand(destination, lockState) {
+		const self = this
+
+		let state = lockState
+		if (state === 'T') {
+			const destNum = typeof destination === 'string' ? parseInt(destination, 10) : destination
+			const currentlyLocked = isDestinationLocked(self.locks?.[destNum])
+			state = currentlyLocked ? 'U' : 'L'
+		} else if (state !== 'U') {
+			state = 'L'
+		}
+
+		const actionLabel = state === 'L' ? 'Lock' : 'Unlock'
+		const command = `.B${state}${destination}`
+		const desc = `${actionLabel} destination ${destination}`
+
+		const sent = await self.sendCommand(command)
+		if (!sent) {
+			const msg = `${actionLabel} failed: destination ${destination}`
+			self.log('error', msg)
+			throw new Error(msg)
+		}
+
+		self.log('info', `${desc} sent`)
+
+		// Optimistically update local state when controllers omit .BA
+		if (typeof self._applyLockStatus === 'function') {
+			self._applyLockStatus(destination, state === 'L' ? 255 : 0)
+		}
+
+		// Interrogate for authoritative status when the controller supports it
+		await self.sendCommand(`.BI${destination}`)
 	},
 
 	/**

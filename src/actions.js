@@ -53,7 +53,7 @@ module.exports = {
 
 		actions['lock_destination'] = {
 			name: 'Lock/Unlock Destination',
-			description: 'Lock/Unlock a Destination',
+			description: 'Lock, unlock, or toggle a destination using dropdown selection',
 			options: [
 				{
 					type: 'dropdown',
@@ -72,14 +72,12 @@ module.exports = {
 					choices: [
 						{ id: 'L', label: 'Lock' },
 						{ id: 'U', label: 'Unlock' },
+						{ id: 'T', label: 'Toggle' },
 					],
 				},
 			],
 			callback: async function (action) {
-				let options = action.options
-				let lock = options.lock
-				let command = `.B${lock},${options.dst}`
-				self.sendCommand(command)
+				await self.sendLockCommand(action.options.dst, action.options.lock)
 			},
 		}
 

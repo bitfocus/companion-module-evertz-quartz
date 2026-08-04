@@ -19,7 +19,7 @@ Multiple levels can be set at once. For example, `VABC` routes video and the fir
 | Action | Description |
 |--------|-------------|
 | **Fire Salvo** | Fire a salvo by ID |
-| **Lock/Unlock Destination** | Lock or unlock a destination |
+| **Lock/Unlock Destination** | Lock, unlock, or toggle a destination |
 | **Route Source to Destination** | Route using dropdown selection |
 | **Route Source to Destination (by ID)** | Route using numeric IDs with variable support |
 | **Set Destination** | Select a destination for subsequent routing |
@@ -44,11 +44,18 @@ The module exposes variables for use in button text and triggers:
 | `src` | Selected source for Take workflow |
 | `src_1_name`, `src_2_name`, … | Source port labels from the router |
 | `dst_1_name`, `dst_2_name`, … | Destination port labels from the router |
+| `dst_1_lock_state`, … | Destination lock state (`Unlocked` / `Locked` / `Owned`) |
 | `xpt_v_1` | Source ID routed to destination 1 (video level) |
 | `xpt_a_1`, `xpt_b_1`, … | Active source IDs for other configured levels |
 | `xpt_v_2`, etc. | Crosspoint state for each destination × level |
 
-Crosspoint variables update in real-time when routes change from any source (Companion, panels, other controllers). Which levels are tracked is set by the Level System config (8 / 16 / MAGNUM). This feature can be disabled in config for large routers to reduce variable count. Source/destination name variables are always available.
+### Feedbacks
+
+| Feedback | Description |
+|----------|-------------|
+| **Destination Locked** | True when the selected destination is locked |
+
+Crosspoint variables update in real-time when routes change from any source (Companion, panels, other controllers). Which levels are tracked is set by the Level System config (8 / 16 / MAGNUM). This feature can be disabled in config for large routers to reduce variable count. Source/destination name and lock-state variables are always available.
 
 ### Config Options
 

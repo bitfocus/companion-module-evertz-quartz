@@ -24,6 +24,7 @@ module.exports = {
 	 *
 	 * Naming:
 	 *   src_{id}_name / dst_{id}_name - Port labels from the router
+	 *   dst_{id}_lock_state - Destination lock state (Unlocked/Locked/Owned)
 	 *   xpt_{level}_{destination} - Active source ID for a crosspoint
 	 *
 	 * @returns {void}
@@ -74,6 +75,10 @@ module.exports = {
 				variableId: `dst_${dest}_name`,
 				name: `Destination ${dest} - Name`,
 			})
+			variables.push({
+				variableId: `dst_${dest}_lock_state`,
+				name: `Destination ${dest} - Lock State`,
+			})
 		}
 
 		// =========================================================================
@@ -105,6 +110,7 @@ module.exports = {
 		}
 		for (let dest = 1; dest <= maxDest; dest++) {
 			initialValues[`dst_${dest}_name`] = ''
+			initialValues[`dst_${dest}_lock_state`] = ''
 		}
 
 		if (self.config.enable_xpt_variables) {
