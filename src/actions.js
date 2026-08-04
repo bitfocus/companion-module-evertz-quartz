@@ -119,8 +119,7 @@ module.exports = {
 			callback: async function (action) {
 				let options = action.options
 				let levels = await self.parseVariablesInString(options.levels)
-				let command = `.S${levels}${options.dst},${options.src}`
-				self.sendCommand(command)
+				await self.sendRouteCommand(levels, options.dst, options.src)
 			},
 		}
 
@@ -158,8 +157,7 @@ module.exports = {
 				let src = await self.parseVariablesInString(options.src)
 				let dst = await self.parseVariablesInString(options.dst)
 				let levels = await self.parseVariablesInString(options.levels)
-				let command = `.S${levels}${dst},${src}`
-				self.sendCommand(command)
+				await self.sendRouteCommand(levels, dst, src)
 			},
 		}
 
@@ -262,14 +260,14 @@ module.exports = {
 				let levels = await self.parseVariablesInString(options.levels)
 				let dst = self.getVariableValue('dst')
 				let src = self.getVariableValue('src')
-		
-				if (dst && src) {
-					let command = `.S${levels}${dst},${src}`
-					self.sendCommand(command)
-					self.log('info', `Take action executed: ${command}`)
-				} else {
-					self.log('error', 'Take action failed: Source or Destination not set')
+
+				if (!dst || !src) {
+					const msg = `Take failed: source or destination not set (src=${src || ''}, dst=${dst || ''}, levels=${levels})`
+					self.log('error', msg)
+					throw new Error(msg)
 				}
+
+				await self.sendRouteCommand(levels, dst, src)
 			},
 		}
 
@@ -297,8 +295,7 @@ module.exports = {
 			callback: async function (action) {
 				let options = action.options
 				let levels = await self.parseVariablesInString(options.levels)
-				let command = `.S${levels}${self.selectedDestination},${options.src}`
-				self.sendCommand(command)
+				await self.sendRouteCommand(levels, self.selectedDestination, options.src)
 			},
 		}
 

@@ -42,11 +42,13 @@ The module exposes variables for use in button text and triggers:
 | `destination_name` | Currently selected destination name |
 | `dst` | Selected destination for Take workflow |
 | `src` | Selected source for Take workflow |
+| `src_1_name`, `src_2_name`, … | Source port labels from the router |
+| `dst_1_name`, `dst_2_name`, … | Destination port labels from the router |
 | `xpt_v_1` | Source ID routed to destination 1 (video level) |
-| `xpt_v_1_name` | Source name routed to destination 1 (video level) |
-| `xpt_v_2`, `xpt_v_2_name`, etc. | Crosspoint state for each destination |
+| `xpt_a_1`, `xpt_b_1`, … | Active source IDs for other configured levels |
+| `xpt_v_2`, etc. | Crosspoint state for each destination × level |
 
-Crosspoint variables update in real-time when routes change from any source (Companion, panels, other controllers). This feature can be disabled in config for large routers to reduce variable count.
+Crosspoint variables update in real-time when routes change from any source (Companion, panels, other controllers). Which levels are tracked is set by the Level System config (8 / 16 / MAGNUM). This feature can be disabled in config for large routers to reduce variable count. Source/destination name variables are always available.
 
 ### Config Options
 
@@ -57,7 +59,8 @@ Crosspoint variables update in real-time when routes change from any source (Com
 | **Max Destinations** | Set to match your router configuration |
 | **Max Sources** | Set to match your router configuration |
 | **Polling Interval** | How often to refresh names and crosspoints (seconds) |
-| **Expose Crosspoint Variables** | Enable/disable xpt_v_* variables |
+| **Expose Crosspoint Variables** | Enable/disable `xpt_*` variables |
+| **Level System** | 8 Level, 16 Level, or MAGNUM — controls which levels get variables and polling |
 | **Verbose Logging** | Log all sent and received data for troubleshooting |
 
 Source and destination names refresh automatically on connection and at the polling interval. Crosspoint state also updates in real-time via router notifications.

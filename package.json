@@ -9,8 +9,11 @@
 		"lint": "yarn lint:raw ."
 	},
 	"license": "MIT",
+	"engines": {
+		"node": ">=22.0.0"
+	},
 	"dependencies": {
-		"@companion-module/base": "~1.10.0"
+		"@companion-module/base": "~1.14.0"
 	},
 	"repository": {
 		"type": "git",

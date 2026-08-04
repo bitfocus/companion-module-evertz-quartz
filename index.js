@@ -38,6 +38,8 @@ const {
 	buildInterrogateAllCommand,
 } = require('./src/quartz')
 
+const { parseLevelsConfig, VALID_LEVELS } = require('./src/constants')
+
 /**
  * @typedef {Object} ChoiceEntry
  * @property {string} id - Unique identifier for the choice
@@ -298,6 +300,10 @@ class QuartzInstance extends InstanceBase {
 
 		// Update or add entry
 		this._updateChoiceList(this.CHOICES_DESTINATIONS, entry, 'destination')
+
+		this.setVariableValues({
+			[`dst_${message.id}_name`]: message.name,
+		})
 	}
 
 	/**
@@ -318,6 +324,10 @@ class QuartzInstance extends InstanceBase {
 
 		// Update or add entry
 		this._updateChoiceList(this.CHOICES_SOURCES, entry, 'source')
+
+		this.setVariableValues({
+			[`src_${message.id}_name`]: message.name,
+		})
 	}
 
 	/**
@@ -395,7 +405,7 @@ class QuartzInstance extends InstanceBase {
 	 * @returns {void}
 	 */
 	_parseInterrogateData(data) {
-		const validLevels = 'VABCDEFGHIJKLMNO'
+		const validLevels = VALID_LEVELS
 		let remaining = data
 		let updated = false
 
@@ -458,10 +468,10 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Updates Companion variables for a crosspoint change
-	 * 
-	 * Sets both the source ID variable and the resolved source name variable.
+	 *
+	 * Sets the active source ID variable for the level/destination.
 	 * Only updates if crosspoint variables are enabled in config.
-	 * 
+	 *
 	 * @private
 	 * @param {string} level - Level character (e.g., 'V' for video)
 	 * @param {number} destination - Destination ID
@@ -474,27 +484,14 @@ class QuartzInstance extends InstanceBase {
 			return
 		}
 
-		// Build variable IDs using lowercase level for consistency
-		const levelLower = level.toLowerCase()
-		const idVar = `xpt_${levelLower}_${destination}`
-		const nameVar = `xpt_${levelLower}_${destination}_name`
-
-		// Look up source name from CHOICES_SOURCES
-		// Format in CHOICES_SOURCES is { id: '5', label: '[5] CAM-1' }
-		// We want just the name part, not the bracketed ID prefix
-		let sourceName = ''
-		const sourceEntry = this.CHOICES_SOURCES.find((entry) => entry.id === String(source))
-		if (sourceEntry && sourceEntry.id !== '0') {
-			// Extract name from label by removing the '[id] ' prefix
-			// Label format: '[5] CAM-1' -> we want 'CAM-1'
-			const match = sourceEntry.label.match(/^\[\d+\]\s*(.*)$/)
-			sourceName = match ? match[1] : sourceEntry.label
+		const trackedLevels = parseLevelsConfig(this.config.xpt_levels)
+		if (!trackedLevels.includes(level)) {
+			return
 		}
 
-		// Update both variables in a single call for efficiency
+		const idVar = `xpt_${level.toLowerCase()}_${destination}`
 		this.setVariableValues({
 			[idVar]: String(source),
-			[nameVar]: sourceName,
 		})
 	}
 
@@ -624,9 +621,13 @@ class QuartzInstance extends InstanceBase {
 	 * @returns {void}
 	 */
 	_requestCrosspoints() {
-		// Request crosspoints for video level
-		// TODO: Could be extended to request other levels via config
-		const cmd = buildInterrogateAllCommand('V', this.config.max_destinations)
+		const levels = parseLevelsConfig(this.config.xpt_levels)
+		const maxDest = this.config.max_destinations
+
+		let cmd = ''
+		for (const level of levels) {
+			cmd += buildInterrogateAllCommand(level, maxDest)
+		}
 		this.sendCommand(cmd)
 	}
 

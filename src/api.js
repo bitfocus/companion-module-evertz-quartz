@@ -207,10 +207,11 @@ module.exports = {
 	 */
 	async sendCommand(cmd) {
 		const self = this
+		const cmdForLog = String(cmd).replace(/\r/g, '')
 
 		// Validate socket state
 		if (!self.socket || !self.socket.isConnected) {
-			self.log('warn', 'Cannot send command: not connected')
+			self.log('warn', `Cannot send command: not connected (${cmdForLog})`)
 			return false
 		}
 
@@ -233,6 +234,32 @@ module.exports = {
 		self.lastCommand = command
 
 		return true
+	},
+
+	/**
+	 * Sends a route (set crosspoint) command with required success/failure logging.
+	 *
+	 * Throws when the command cannot be sent so Companion surfaces the failure.
+	 *
+	 * @async
+	 * @param {string} levels - Level string (e.g. 'V', 'VABC')
+	 * @param {number|string} destination - Destination ID
+	 * @param {number|string} source - Source ID
+	 * @returns {Promise<void>}
+	 */
+	async sendRouteCommand(levels, destination, source) {
+		const self = this
+		const command = `.S${levels}${destination},${source}`
+		const routeDesc = `source ${source} -> destination ${destination} (levels ${levels})`
+
+		const sent = await self.sendCommand(command)
+		if (!sent) {
+			const msg = `Route failed: ${routeDesc}`
+			self.log('error', msg)
+			throw new Error(msg)
+		}
+
+		self.log('info', `Route sent: ${routeDesc}`)
 	},
 
 	/**

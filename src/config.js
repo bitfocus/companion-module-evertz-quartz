@@ -1,29 +1,30 @@
 /**
  * @fileoverview Module Configuration for Evertz Quartz Router Control
- * 
+ *
  * Defines the configuration fields displayed in Companion's module settings.
  * These settings control connection parameters, polling behavior, and debugging.
- * 
+ *
  * @module config
  * @author Companion Module Contributors
  * @see {@link https://github.com/bitfocus/companion-module-evertz-quartz}
  */
 
 const { Regex } = require('@companion-module/base')
+const { DEFAULT_XPT_LEVEL_SYSTEM, XPT_LEVEL_CHOICES } = require('./constants')
 
 /**
  * Configuration field definitions
- * 
+ *
  * These methods are mixed into the main instance class via Object.assign().
- * 
+ *
  * @mixin
  */
 module.exports = {
 	/**
 	 * Returns the configuration field definitions for the module
-	 * 
+	 *
 	 * These fields are displayed in Companion's module configuration UI.
-	 * 
+	 *
 	 * @returns {Object[]} Array of configuration field definitions
 	 */
 	getConfigFields() {
@@ -130,7 +131,7 @@ module.exports = {
 				value: '<hr />',
 			},
 
-			// Variable settings
+			// Variable / level settings
 			{
 				type: 'checkbox',
 				id: 'enable_xpt_variables',
@@ -139,11 +140,20 @@ module.exports = {
 				default: true,
 			},
 			{
+				type: 'dropdown',
+				id: 'xpt_levels',
+				label: 'Level System',
+				width: 4,
+				default: DEFAULT_XPT_LEVEL_SYSTEM,
+				choices: XPT_LEVEL_CHOICES,
+			},
+			{
 				type: 'static-text',
 				id: 'xptvarinfo',
-				width: 8,
+				width: 4,
 				label: ' ',
-				value: 'Creates variables for each destination showing the currently routed source (ID and name). Disable for large routers to reduce variable count (2 per destination).',
+				value:
+					'When enabled, creates one active-source variable per level per destination (`xpt_*`). Choose the level system to match your router. Disable for large routers to reduce variable count.',
 			},
 			{
 				type: 'static-text',
