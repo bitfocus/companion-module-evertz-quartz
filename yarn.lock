@@ -5,7 +5,7 @@ __metadata:
   version: 10
   cacheKey: 10c0
 
-"@companion-module/base@npm:~1.14.0":
+"@companion-module/base@npm:~1.14.1":
   version: 1.14.1
   resolution: "@companion-module/base@npm:1.14.1"
   dependencies:
@@ -22,7 +22,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@companion-module/tools@npm:^2.6.1":
+"@companion-module/tools@npm:^2.7.2":
   version: 2.7.2
   resolution: "@companion-module/tools@npm:2.7.2"
   dependencies:
@@ -930,7 +930,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"eslint@npm:^9.39.4":
+"eslint@npm:^9.39.5":
   version: 9.39.5
   resolution: "eslint@npm:9.39.5"
   dependencies:
@@ -1054,10 +1054,10 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "evertz-quartz@workspace:."
   dependencies:
-    "@companion-module/base": "npm:~1.14.0"
-    "@companion-module/tools": "npm:^2.6.1"
-    eslint: "npm:^9.39.4"
-    prettier: "npm:^3.3.2"
+    "@companion-module/base": "npm:~1.14.1"
+    "@companion-module/tools": "npm:^2.7.2"
+    eslint: "npm:^9.39.5"
+    prettier: "npm:^3.9.6"
   languageName: unknown
   linkType: soft
 
@@ -1754,7 +1754,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"prettier@npm:^3.3.2":
+"prettier@npm:^3.9.6":
   version: 3.9.6
   resolution: "prettier@npm:3.9.6"
   bin:
