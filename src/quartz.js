@@ -1,15 +1,15 @@
 /**
  * @fileoverview Quartz Protocol Implementation for Evertz Routers
- * 
+ *
  * This module handles the Quartz protocol used by Evertz EQX/EQT series routers.
  * It provides command building, response parsing, and message framing.
- * 
+ *
  * Quartz protocol framing:
- * - Commands and responses start with '.' 
+ * - Commands and responses start with '.'
  * - Messages are terminated with '\r' (carriage return, 0x0D)
  * - Multiple commands can be batched in a single transmission
  * - Responses may arrive fragmented across multiple TCP packets
- * 
+ *
  * @module quartz
  * @author Companion Module Contributors
  * @see {@link https://github.com/bitfocus/companion-module-evertz-quartz}
@@ -154,14 +154,14 @@ const MessageType = {
 
 /**
  * Quartz Protocol Parser
- * 
+ *
  * Handles message framing and parsing for the Quartz protocol.
  * Accumulates incoming data until complete messages are received,
  * then parses and emits structured message objects.
- * 
+ *
  * @extends EventEmitter
  * @fires QuartzParser#message
- * 
+ *
  * @example
  * const parser = new QuartzParser()
  * parser.on('message', (msg) => {
@@ -188,14 +188,14 @@ class QuartzParser extends EventEmitter {
 
 	/**
 	 * Feeds raw data into the parser
-	 * 
+	 *
 	 * Data is accumulated and processed incrementally. Complete messages
 	 * (terminated with \r) are parsed and emitted immediately. Incomplete
 	 * data remains in the buffer until more data arrives.
-	 * 
+	 *
 	 * @param {Buffer|string} data - Raw data received from socket
 	 * @returns {void}
-	 * 
+	 *
 	 * @example
 	 * socket.on('data', (data) => parser.feed(data))
 	 */
@@ -210,11 +210,11 @@ class QuartzParser extends EventEmitter {
 
 	/**
 	 * Processes the internal buffer, extracting and parsing complete messages
-	 * 
+	 *
 	 * Quartz framing: messages start with '.' and end with '\r'
 	 * Multiple messages may be present in the buffer. Any incomplete
 	 * message at the end is retained for the next feed() call.
-	 * 
+	 *
 	 * @private
 	 * @returns {void}
 	 */
@@ -224,7 +224,7 @@ class QuartzParser extends EventEmitter {
 		while ((crIndex = this._buffer.indexOf('\r')) !== -1) {
 			// Extract the complete message (including any leading whitespace/previous \r)
 			const message = this._buffer.slice(0, crIndex)
-			
+
 			// Remove processed message from buffer (including the \r)
 			this._buffer = this._buffer.slice(crIndex + 1)
 
@@ -250,7 +250,7 @@ class QuartzParser extends EventEmitter {
 
 	/**
 	 * Parses a single Quartz protocol line into a structured message
-	 * 
+	 *
 	 * @private
 	 * @param {string} line - Single line from the protocol (without \r terminator)
 	 * @returns {ParsedMessage|null} Parsed message object, or null if empty
@@ -306,10 +306,10 @@ class QuartzParser extends EventEmitter {
 
 	/**
 	 * Parses a name response (destination or source)
-	 * 
+	 *
 	 * Format: .RA[D|S]{id},{name}
 	 * Example: .RAD001,Camera 1
-	 * 
+	 *
 	 * @private
 	 * @param {string} line - Raw response line
 	 * @param {string} prefix - The response prefix to strip
@@ -339,13 +339,13 @@ class QuartzParser extends EventEmitter {
 
 	/**
 	 * Parses a crosspoint update response
-	 * 
+	 *
 	 * Format: .U{levels}{dest},{srce}
 	 * Example: .UV001,002 (destination 1 routed to source 2 on level V)
 	 * Example: .UVAB001,002 (destination 1 routed to source 2 on levels V, A, B)
-	 * 
+	 *
 	 * Per protocol spec, levels are always in order: V,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O
-	 * 
+	 *
 	 * @private
 	 * @param {string} line - Raw response line
 	 * @returns {CrosspointUpdateMessage|UnknownMessage} Parsed update message
@@ -410,13 +410,13 @@ class QuartzParser extends EventEmitter {
 
 	/**
 	 * Parses a lock status response
-	 * 
+	 *
 	 * Format: .BA{dest},{status}
 	 * Status values:
 	 *   0 = unlocked
 	 *   1-254 = protected lock by panel at Q-link address (n-1)
 	 *   255 = unprotected lock
-	 * 
+	 *
 	 * @private
 	 * @param {string} line - Raw response line
 	 * @returns {LockStatusMessage|UnknownMessage} Parsed lock status message
@@ -451,21 +451,21 @@ class QuartzParser extends EventEmitter {
 
 	/**
 	 * Parses an acknowledge response
-	 * 
+	 *
 	 * Format: .A or .A{data}
-	 * 
+	 *
 	 * The .A response is used for:
 	 * - Simple acknowledgment (just .A)
 	 * - Interrogate response (.A{level}{dest},{srce})
 	 * - List response (.A{level}{dest},{srce}{level}{dest},{srce}...)
-	 * 
+	 *
 	 * @private
 	 * @param {string} line - Raw response line
 	 * @returns {AcknowledgeMessage} Parsed acknowledge message
 	 */
 	_parseAcknowledgeResponse(line) {
 		const data = line.slice(ResponsePrefix.ACKNOWLEDGE.length)
-		
+
 		return {
 			type: MessageType.ACKNOWLEDGE,
 			data: data.length > 0 ? data : undefined,
@@ -475,10 +475,10 @@ class QuartzParser extends EventEmitter {
 
 	/**
 	 * Clears the internal buffer
-	 * 
+	 *
 	 * Call this when resetting the connection to avoid
 	 * stale data from a previous session.
-	 * 
+	 *
 	 * @returns {void}
 	 */
 	reset() {
@@ -492,10 +492,10 @@ class QuartzParser extends EventEmitter {
 
 /**
  * Builds a command to read destination names
- * 
+ *
  * @param {number} maxDestinations - Maximum destination ID to query
  * @returns {string} Formatted Quartz command string
- * 
+ *
  * @example
  * const cmd = buildReadDestinationsCommand(16)
  * // Returns: '.RD1\r.RD2\r.RD3\r...'
@@ -510,10 +510,10 @@ function buildReadDestinationsCommand(maxDestinations) {
 
 /**
  * Builds a command to read source names
- * 
+ *
  * @param {number} maxSources - Maximum source ID to query
  * @returns {string} Formatted Quartz command string
- * 
+ *
  * @example
  * const cmd = buildReadSourcesCommand(16)
  * // Returns: '.RS1\r.RS2\r.RS3\r...'
@@ -528,7 +528,7 @@ function buildReadSourcesCommand(maxSources) {
 
 /**
  * Builds a command to read all names (destinations and sources)
- * 
+ *
  * @param {number} maxDestinations - Maximum destination ID to query
  * @param {number} maxSources - Maximum source ID to query
  * @returns {string} Formatted Quartz command string
@@ -539,12 +539,12 @@ function buildReadNamesCommand(maxDestinations, maxSources) {
 
 /**
  * Builds a command to route a source to a destination
- * 
+ *
  * @param {string} levels - Level string (e.g., 'V', 'VA', 'VABCDEFGH')
  * @param {number|string} destination - Destination ID
  * @param {number|string} source - Source ID
  * @returns {string} Formatted Quartz command string
- * 
+ *
  * @example
  * const cmd = buildRouteCommand('V', 1, 5)
  * // Returns: '.SV1,5'
@@ -555,10 +555,10 @@ function buildRouteCommand(levels, destination, source) {
 
 /**
  * Builds a command to fire a salvo
- * 
+ *
  * @param {number|string} salvoId - Salvo identifier (1-32)
  * @returns {string} Formatted Quartz command string
- * 
+ *
  * @example
  * const cmd = buildSalvoCommand(1)
  * // Returns: '.F1'
@@ -569,10 +569,10 @@ function buildSalvoCommand(salvoId) {
 
 /**
  * Builds a command to lock a destination
- * 
+ *
  * @param {number|string} destination - Destination ID
  * @returns {string} Formatted Quartz command string
- * 
+ *
  * @example
  * const cmd = buildLockCommand(1)
  * // Returns: '.BL1'
@@ -583,10 +583,10 @@ function buildLockCommand(destination) {
 
 /**
  * Builds a command to unlock a destination
- * 
+ *
  * @param {number|string} destination - Destination ID
  * @returns {string} Formatted Quartz command string
- * 
+ *
  * @example
  * const cmd = buildUnlockCommand(1)
  * // Returns: '.BU1'
@@ -597,10 +597,10 @@ function buildUnlockCommand(destination) {
 
 /**
  * Builds a command to interrogate a destination's lock status
- * 
+ *
  * @param {number|string} destination - Destination ID
  * @returns {string} Formatted Quartz command string
- * 
+ *
  * @example
  * const cmd = buildLockInterrogateCommand(1)
  * // Returns: '.BI1'
@@ -611,11 +611,11 @@ function buildLockInterrogateCommand(destination) {
 
 /**
  * Builds a command to interrogate a single crosspoint
- * 
+ *
  * @param {string} level - Single level character (e.g., 'V')
  * @param {number|string} destination - Destination ID
  * @returns {string} Formatted Quartz command string
- * 
+ *
  * @example
  * const cmd = buildInterrogateCommand('V', 1)
  * // Returns: '.IV1'
@@ -626,11 +626,11 @@ function buildInterrogateCommand(level, destination) {
 
 /**
  * Builds a command to list routes (up to 8 at a time)
- * 
+ *
  * @param {string} level - Single level character (e.g., 'V')
  * @param {number|string} startDestination - Starting destination ID
  * @returns {string} Formatted Quartz command string
- * 
+ *
  * @example
  * const cmd = buildListRoutesCommand('V', 1)
  * // Returns: '.LV1,-'
@@ -641,9 +641,9 @@ function buildListRoutesCommand(level, startDestination) {
 
 /**
  * Builds commands to interrogate all crosspoints for a level
- * 
+ *
  * Uses the interrogate command (.I) for each destination.
- * 
+ *
  * @param {string} level - Single level character (e.g., 'V')
  * @param {number} maxDestinations - Maximum destination ID to query
  * @returns {string} Formatted Quartz command string

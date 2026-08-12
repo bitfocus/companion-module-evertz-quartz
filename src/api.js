@@ -1,12 +1,12 @@
 /**
  * @fileoverview TCP Connection Management for Evertz Quartz Module
- * 
+ *
  * This module handles the TCP socket lifecycle for communicating with
  * Evertz routers. It provides connection management, reconnection logic,
  * and raw data transmission without any protocol-specific knowledge.
- * 
+ *
  * Protocol parsing and framing is handled by the quartz.js module.
- * 
+ *
  * @module api
  * @author Companion Module Contributors
  * @see {@link https://github.com/bitfocus/companion-module-evertz-quartz}
@@ -17,24 +17,24 @@ const { isDestinationLocked } = require('./constants')
 
 /**
  * Connection management methods
- * 
+ *
  * These methods are mixed into the main instance class via Object.assign().
  * They handle TCP socket lifecycle and provide hooks for the main module
  * to respond to connection events.
- * 
+ *
  * @mixin
  */
 module.exports = {
 	/**
 	 * Initializes the TCP connection to the router
-	 * 
+	 *
 	 * Creates a new TCP socket, sets up event handlers, and attempts
 	 * to connect to the configured host and port. Cleans up any existing
 	 * connection before establishing a new one.
-	 * 
+	 *
 	 * @async
 	 * @returns {Promise<void>}
-	 * 
+	 *
 	 * @fires socket#connect
 	 * @fires socket#data
 	 * @fires socket#error
@@ -81,10 +81,10 @@ module.exports = {
 
 	/**
 	 * Cleans up the existing connection and related resources
-	 * 
+	 *
 	 * Clears polling intervals and destroys the socket if it exists.
 	 * Called before establishing a new connection or during shutdown.
-	 * 
+	 *
 	 * @private
 	 * @returns {void}
 	 */
@@ -117,9 +117,9 @@ module.exports = {
 
 	/**
 	 * Handles socket connection errors
-	 * 
+	 *
 	 * Logs the error and updates the instance status.
-	 * 
+	 *
 	 * @private
 	 * @param {Error} error - The error that occurred
 	 * @returns {void}
@@ -132,10 +132,10 @@ module.exports = {
 
 	/**
 	 * Handles successful socket connection
-	 * 
+	 *
 	 * Updates status, triggers initial data fetch, and starts
 	 * polling at the configured interval.
-	 * 
+	 *
 	 * @private
 	 * @returns {void}
 	 */
@@ -157,10 +157,10 @@ module.exports = {
 
 	/**
 	 * Handles incoming socket data
-	 * 
+	 *
 	 * Passes raw data to the protocol parser. Optionally logs
 	 * the data if verbose logging is enabled.
-	 * 
+	 *
 	 * @private
 	 * @param {Buffer} data - Raw data received from socket
 	 * @returns {void}
@@ -180,9 +180,9 @@ module.exports = {
 
 	/**
 	 * Handles socket connection close
-	 * 
+	 *
 	 * Updates status and could trigger reconnection logic.
-	 * 
+	 *
 	 * @private
 	 * @returns {void}
 	 */
@@ -194,14 +194,14 @@ module.exports = {
 
 	/**
 	 * Sends a raw command string to the router
-	 * 
+	 *
 	 * Automatically appends carriage return if not present.
 	 * Logs the command if verbose logging is enabled.
-	 * 
+	 *
 	 * @async
 	 * @param {string} cmd - Command string to send
 	 * @returns {Promise<boolean>} True if command was sent, false otherwise
-	 * 
+	 *
 	 * @example
 	 * await self.sendCommand('.RD1')  // Read destination 1 name
 	 * await self.sendCommand('.SV1,5') // Route source 5 to destination 1 on video level
@@ -312,7 +312,7 @@ module.exports = {
 
 	/**
 	 * Checks if the socket is currently connected
-	 * 
+	 *
 	 * @returns {boolean} True if connected, false otherwise
 	 */
 	isConnected() {

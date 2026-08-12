@@ -1,18 +1,17 @@
 name: Companion Module Checks
 
 on:
-  push:
+    push:
 
 jobs:
-  check:
-    name: Check module
+    check:
+        name: Check module
 
-    if: ${{ !contains(github.repository, 'companion-module-template-') }}
+        if: ${{ !contains(github.repository, 'companion-module-template-') }}
 
-    permissions:
-      packages: read
+        permissions:
+            packages: read
 
-    uses: bitfocus/actions/.github/workflows/module-checks.yaml@main
-    # with:
-    #   upload-artifact: true # uncomment this to upload the built package as an artifact to this workflow that you can download and share with others
-
+        uses: bitfocus/actions/.github/workflows/module-checks.yaml@main
+        # with:
+        #   upload-artifact: true # uncomment this to upload the built package as an artifact to this workflow that you can download and share with others

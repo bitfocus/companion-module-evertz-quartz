@@ -1,10 +1,10 @@
 /**
  * @fileoverview Evertz Quartz Router Control Module for Bitfocus Companion
- * 
+ *
  * This module enables control of Evertz EQX series routers using the Quartz protocol.
  * It provides actions for routing, salvos, and destination locks, with support for
  * polling router state.
- * 
+ *
  * Architecture:
  * - index.js: Module lifecycle, state management, Companion integration
  * - api.js: TCP socket lifecycle (connect, disconnect, send)
@@ -14,13 +14,13 @@
  * - variables.js: Companion variable definitions
  * - presets.js: Companion preset definitions
  * - config.js: Module configuration fields
- * 
+ *
  * @module companion-module-evertz-quartz
  * @author Companion Module Contributors
  * @see {@link https://github.com/bitfocus/companion-module-evertz-quartz}
  */
 
-const { InstanceBase, InstanceStatus, runEntrypoint } = require('@companion-module/base')
+const { InstanceBase, runEntrypoint } = require('@companion-module/base')
 const upgrades = require('./src/upgrades')
 
 const config = require('./src/config')
@@ -49,18 +49,18 @@ const { parseLevelsConfig, VALID_LEVELS, lockStatusToLabel } = require('./src/co
 
 /**
  * Evertz Quartz Router Control Module
- * 
+ *
  * Main module class that handles all interaction between Companion
  * and Evertz routers using the Quartz protocol.
- * 
+ *
  * @extends InstanceBase
  */
 class QuartzInstance extends InstanceBase {
 	/**
 	 * Creates a new QuartzInstance
-	 * 
+	 *
 	 * Initializes state and assigns mixin methods from separate modules.
-	 * 
+	 *
 	 * @param {Object} internal - Internal Companion instance data
 	 */
 	constructor(internal) {
@@ -144,10 +144,10 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Module initialization
-	 * 
+	 *
 	 * Called by Companion when the module instance is created.
 	 * Triggers configuration update which handles actual initialization.
-	 * 
+	 *
 	 * @async
 	 * @param {Object} config - Module configuration from Companion
 	 * @returns {Promise<void>}
@@ -158,10 +158,10 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Module destruction
-	 * 
+	 *
 	 * Called by Companion when the module instance is being removed.
 	 * Cleans up connections, intervals, and resources.
-	 * 
+	 *
 	 * @async
 	 * @returns {Promise<void>}
 	 */
@@ -197,10 +197,10 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Configuration update handler
-	 * 
+	 *
 	 * Called when module configuration changes. Re-initializes
 	 * the parser, connection, and Companion definitions.
-	 * 
+	 *
 	 * @async
 	 * @param {Object} config - Updated module configuration
 	 * @returns {Promise<void>}
@@ -223,10 +223,10 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Initializes the Quartz protocol parser
-	 * 
+	 *
 	 * Creates a new parser instance and wires up message handlers
 	 * to update module state.
-	 * 
+	 *
 	 * @private
 	 * @returns {void}
 	 */
@@ -247,10 +247,10 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Handles a parsed protocol message
-	 * 
+	 *
 	 * Routes the message to appropriate handlers based on type
 	 * and updates module state accordingly.
-	 * 
+	 *
 	 * @private
 	 * @param {ParsedMessage} message - Parsed message from QuartzParser
 	 * @returns {void}
@@ -299,10 +299,10 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Handles a destination name message
-	 * 
+	 *
 	 * Updates the CHOICES_DESTINATIONS array with the received name.
 	 * Triggers action refresh if the list changes.
-	 * 
+	 *
 	 * @private
 	 * @param {DestinationNameMessage} message - Destination name message
 	 * @returns {void}
@@ -323,10 +323,10 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Handles a source name message
-	 * 
+	 *
 	 * Updates the CHOICES_SOURCES array with the received name.
 	 * Triggers action refresh if the list changes.
-	 * 
+	 *
 	 * @private
 	 * @param {SourceNameMessage} message - Source name message
 	 * @returns {void}
@@ -372,11 +372,11 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Handles a crosspoint update message
-	 * 
+	 *
 	 * Updates internal crosspoint state and Companion variables.
 	 * Called both for responses to our commands and for unsolicited
 	 * updates when panels or other controllers change routes.
-	 * 
+	 *
 	 * @private
 	 * @param {CrosspointUpdateMessage} message - Crosspoint update message
 	 * @returns {void}
@@ -408,10 +408,10 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Handles an acknowledge message
-	 * 
+	 *
 	 * The .A response can contain crosspoint data from interrogate (.I) or
 	 * list (.L) commands. Format: .A{level}{dest},{src} or multiple pairs.
-	 * 
+	 *
 	 * @private
 	 * @param {AcknowledgeMessage} message - Acknowledge message
 	 * @returns {void}
@@ -433,13 +433,13 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Parses interrogate response data and updates crosspoint state
-	 * 
+	 *
 	 * Handles both single interrogate responses (.IV1 -> .AV001,005)
 	 * and list responses (.LV1,- -> .AV001,005V002,003V003,001...)
-	 * 
+	 *
 	 * Updates both internal state and Companion variables for each
 	 * crosspoint parsed.
-	 * 
+	 *
 	 * @private
 	 * @param {string} data - Data portion of .A response (after the .A prefix)
 	 * @returns {void}
@@ -540,31 +540,31 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Handles a protocol error message
-	 * 
+	 *
 	 * Logs the error for debugging. Common cause is max_sources
 	 * or max_destinations being set higher than router capacity.
-	 * 
+	 *
 	 * @private
 	 * @param {ErrorMessage} message - Error message
 	 * @returns {void}
 	 */
-	_handleProtocolError(message) {
+	_handleProtocolError(_message) {
 		this.log('error', 'Received error from router. Are max_destinations or max_sources too high?')
 	}
 
 	/**
 	 * Updates a choice list with a new entry
-	 * 
+	 *
 	 * Handles the "No X Loaded" placeholder and avoids duplicates.
 	 * Triggers action refresh when the list changes.
-	 * 
+	 *
 	 * @private
 	 * @param {ChoiceEntry[]} list - The choice list to update
 	 * @param {ChoiceEntry} entry - The entry to add or update
 	 * @param {string} type - Type name for logging ('destination' or 'source')
 	 * @returns {void}
 	 */
-	_updateChoiceList(list, entry, type) {
+	_updateChoiceList(list, entry, _type) {
 		// Remove placeholder if present
 		if (list.length === 1 && list[0].id === '0') {
 			list.length = 0
@@ -588,10 +588,10 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Schedules an actions refresh
-	 * 
+	 *
 	 * Uses a debounce mechanism to avoid excessive refreshes
 	 * when many names arrive in quick succession.
-	 * 
+	 *
 	 * @private
 	 * @returns {void}
 	 */
@@ -610,10 +610,10 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Called when TCP connection is established
-	 * 
+	 *
 	 * Triggers initial data retrieval from the router.
 	 * This is called by api.js when the socket connects.
-	 * 
+	 *
 	 * @returns {void}
 	 */
 	onConnected() {
@@ -625,9 +625,9 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Called on polling interval
-	 * 
+	 *
 	 * Refreshes names, crosspoint state, and lock state from the router.
-	 * 
+	 *
 	 * @returns {void}
 	 */
 	poll() {
@@ -638,24 +638,21 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Requests source and destination names from the router
-	 * 
+	 *
 	 * Builds and sends the appropriate Quartz commands to
 	 * retrieve all configured source and destination names.
-	 * 
+	 *
 	 * @private
 	 * @returns {void}
 	 */
 	_requestNames() {
-		const cmd = buildReadNamesCommand(
-			this.config.max_destinations,
-			this.config.max_sources
-		)
+		const cmd = buildReadNamesCommand(this.config.max_destinations, this.config.max_sources)
 		this.sendCommand(cmd)
 	}
 
 	/**
 	 * Requests current crosspoint state from the router
-	 * 
+	 *
 	 * Always interrogates the base 'V' level (matches this module's original
 	 * behavior — video routing state is core functionality independent of
 	 * the optional xpt_* variables). When enable_xpt_variables is on, also
@@ -700,7 +697,7 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Gets the source currently routed to a destination on a given level
-	 * 
+	 *
 	 * @param {string} level - Level character (e.g., 'V')
 	 * @param {number|string} destination - Destination ID
 	 * @returns {number|undefined} Source ID, or undefined if unknown
@@ -723,9 +720,9 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Gets a formatted destination name for logging
-	 * 
+	 *
 	 * Returns "Name (ID)" if name is known, otherwise just "Dest ID"
-	 * 
+	 *
 	 * @private
 	 * @param {number} id - Destination ID
 	 * @returns {string} Formatted destination identifier
@@ -742,9 +739,9 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Gets a formatted source name for logging
-	 * 
+	 *
 	 * Returns "Name (ID)" if name is known, otherwise just "Src ID"
-	 * 
+	 *
 	 * @private
 	 * @param {number} id - Source ID
 	 * @returns {string} Formatted source identifier

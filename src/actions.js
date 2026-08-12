@@ -1,13 +1,13 @@
 /**
  * @fileoverview Action Definitions for Evertz Quartz Router Control
- * 
+ *
  * Defines Companion actions for controlling Evertz routers via Quartz protocol.
  * Actions fall into several categories:
- * 
+ *
  * - Direct routing: Route source to destination immediately
  * - Selection workflow: Select destination, select source, then take
  * - System control: Fire salvos, lock/unlock destinations
- * 
+ *
  * @module actions
  * @author Companion Module Contributors
  * @see {@link https://github.com/bitfocus/companion-module-evertz-quartz}
@@ -16,11 +16,11 @@
 module.exports = {
 	/**
 	 * Initializes action definitions for the module
-	 * 
+	 *
 	 * Called during module init and when configuration changes.
 	 * Actions reference CHOICES_DESTINATIONS and CHOICES_SOURCES arrays
 	 * which are populated from router responses.
-	 * 
+	 *
 	 * @returns {void}
 	 */
 	initActions: function () {
@@ -207,14 +207,14 @@ module.exports = {
 			callback: async function (action) {
 				let options = action.options
 				let destination = options.dst
-		
+
 				// Save the selected destination in the correct variable
 				self.setVariableValues({ dst: destination })
-		
+
 				self.log('info', `Selected Destination for Take: ${destination}`)
 			},
 		}
-		
+
 		actions['set_source_take'] = {
 			name: 'Select Source for Take',
 			description: 'Set a source for routing with the Take Action',
@@ -231,10 +231,10 @@ module.exports = {
 			callback: async function (action) {
 				let options = action.options
 				let source = options.src
-		
+
 				// Save the selected source in the correct variable
 				self.setVariableValues({ src: source })
-		
+
 				self.log('info', `Selected Source for Take: ${source}`)
 			},
 		}

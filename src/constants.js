@@ -133,4 +133,3 @@ module.exports = {
 		return typeof status === 'number' && status !== 0
 	},
 }
-

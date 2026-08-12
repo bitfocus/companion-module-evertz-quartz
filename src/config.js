@@ -152,8 +152,7 @@ module.exports = {
 				id: 'xptvarinfo',
 				width: 4,
 				label: ' ',
-				value:
-					'When enabled, creates one active-source variable per level per destination (`xpt_*`). Choose the level system to match your router. Disable for large routers to reduce variable count.',
+				value: 'When enabled, creates one active-source variable per level per destination (`xpt_*`). Choose the level system to match your router. Disable for large routers to reduce variable count.',
 			},
 			{
 				type: 'static-text',
