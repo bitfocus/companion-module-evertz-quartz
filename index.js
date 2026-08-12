@@ -519,14 +519,17 @@ class QuartzInstance extends InstanceBase {
 	 * @returns {void}
 	 */
 	_updateCrosspointVariable(level, destination, source) {
-		// Skip if crosspoint variables are disabled
-		if (!this.config.enable_xpt_variables) {
-			return
-		}
-
-		const trackedLevels = parseLevelsConfig(this.config.xpt_levels)
-		if (!trackedLevels.includes(level)) {
-			return
+		// 'V' is always tracked
+		// Other levels only update their variable when enable_xpt_variables
+		// is on and the level is in the configured xpt_levels set.
+		if (level !== 'V') {
+			if (!this.config.enable_xpt_variables) {
+				return
+			}
+			const trackedLevels = parseLevelsConfig(this.config.xpt_levels)
+			if (!trackedLevels.includes(level)) {
+				return
+			}
 		}
 
 		const idVar = `xpt_${level.toLowerCase()}_${destination}`
@@ -653,19 +656,29 @@ class QuartzInstance extends InstanceBase {
 	/**
 	 * Requests current crosspoint state from the router
 	 * 
-	 * Interrogates all destinations on the video level to get
-	 * the current routing state. The router responds with .A
-	 * messages containing the current source for each destination.
-	 * 
+	 * Always interrogates the base 'V' level (matches this module's original
+	 * behavior — video routing state is core functionality independent of
+	 * the optional xpt_* variables). When enable_xpt_variables is on, also
+	 * interrogates every other level configured via xpt_levels.
+	 *
+	 * The router responds with .A messages containing the current source
+	 * for each destination.
+	 *
 	 * Note: The router also sends unsolicited .U messages whenever
 	 * routes change, so polling is supplementary to real-time updates.
-	 * 
+	 *
 	 * @private
 	 * @returns {void}
 	 */
 	_requestCrosspoints() {
-		const levels = parseLevelsConfig(this.config.xpt_levels)
 		const maxDest = this.config.max_destinations
+
+		const levels = new Set(['V'])
+		if (this.config.enable_xpt_variables) {
+			for (const level of parseLevelsConfig(this.config.xpt_levels)) {
+				levels.add(level)
+			}
+		}
 
 		let cmd = ''
 		for (const level of levels) {

@@ -82,21 +82,26 @@ module.exports = {
 		}
 
 		// =========================================================================
-		// Crosspoint State Variables (optional)
+		// Crosspoint State Variables
+		// 'V' is always defined. Other levels are added when enable_xpt_variables
+		// is on, per xpt_levels config.
 		// =========================================================================
 
+		const xptLevels = new Set(['V'])
 		if (self.config.enable_xpt_variables) {
-			const levels = parseLevelsConfig(self.config.xpt_levels)
+			for (const level of parseLevelsConfig(self.config.xpt_levels)) {
+				xptLevels.add(level)
+			}
+		}
 
-			for (const level of levels) {
-				const levelLower = level.toLowerCase()
+		for (const level of xptLevels) {
+			const levelLower = level.toLowerCase()
 
-				for (let dest = 1; dest <= maxDest; dest++) {
-					variables.push({
-						variableId: `xpt_${levelLower}_${dest}`,
-						name: `Crosspoint ${level} - Destination ${dest} - Current Source ID`,
-					})
-				}
+			for (let dest = 1; dest <= maxDest; dest++) {
+				variables.push({
+					variableId: `xpt_${levelLower}_${dest}`,
+					name: `Crosspoint ${level} - Destination ${dest} - Current Source ID`,
+				})
 			}
 		}
 
@@ -113,13 +118,10 @@ module.exports = {
 			initialValues[`dst_${dest}_lock_state`] = ''
 		}
 
-		if (self.config.enable_xpt_variables) {
-			const levels = parseLevelsConfig(self.config.xpt_levels)
-			for (const level of levels) {
-				const levelLower = level.toLowerCase()
-				for (let dest = 1; dest <= maxDest; dest++) {
-					initialValues[`xpt_${levelLower}_${dest}`] = ''
-				}
+		for (const level of xptLevels) {
+			const levelLower = level.toLowerCase()
+			for (let dest = 1; dest <= maxDest; dest++) {
+				initialValues[`xpt_${levelLower}_${dest}`] = ''
 			}
 		}
 
