@@ -17,6 +17,7 @@
  */
 
 const EventEmitter = require('events')
+const { VALID_LEVELS } = require('./constants')
 
 /**
  * Quartz protocol command prefixes
@@ -361,11 +362,12 @@ class QuartzParser extends EventEmitter {
 		}
 
 		// Find where the levels end and the destination number begins
-		// Levels are letters (V,A,B,C,D,E,F,G,H,I,J,K,L,M,N,O)
+		// Levels are letters; use the full configured level set (up to Magnum/26-level)
+		// so updates on levels beyond 'O' aren't misparsed as UNKNOWN.
 		// Destination is numeric
 		let levelEndIndex = 0
-		const validLevels = 'VABCDEFGHIJKLMNO'
-		
+		const validLevels = VALID_LEVELS
+
 		while (levelEndIndex < payload.length && validLevels.includes(payload[levelEndIndex])) {
 			levelEndIndex++
 		}

@@ -301,8 +301,9 @@ module.exports = {
 		self.log('info', `${desc} sent`)
 
 		// Optimistically update local state when controllers omit .BA
-		if (typeof self._applyLockStatus === 'function') {
-			self._applyLockStatus(destination, state === 'L' ? 255 : 0)
+		if (typeof self._handleLockStatus === 'function') {
+			const destNum = typeof destination === 'string' ? parseInt(destination, 10) : destination
+			self._handleLockStatus({ destination: destNum, status: state === 'L' ? 255 : 0 })
 		}
 
 		// Interrogate for authoritative status when the controller supports it
