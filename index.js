@@ -39,6 +39,7 @@ const {
 	buildInterrogateAllCommand,
 	buildListRoutesAllCommand,
 	buildLockInterrogateAllCommand,
+	buildLockInterrogateCommand,
 } = require('./src/quartz')
 
 const { getXptVariableLevels, lockStatusToLabel } = require('./src/constants')
@@ -48,6 +49,13 @@ const { getXptVariableLevels, lockStatusToLabel } = require('./src/constants')
  * @type {number}
  */
 const LIST_ROUTES_PROBE_TIMEOUT = 2000
+
+/**
+ * How long to wait for a .BA reply when interrogating a single destination's
+ * lock status on demand, in milliseconds.
+ * @type {number}
+ */
+const LOCK_STATUS_INTERROGATE_TIMEOUT = 500
 
 /**
  * @typedef {Object} ChoiceEntry
@@ -249,9 +257,12 @@ class QuartzInstance extends InstanceBase {
 	 * @returns {void}
 	 */
 	_initParser() {
-		// Clean up existing parser
 		if (this.parser) {
-			this.parser.removeAllListeners()
+			// Config changed, not a fresh init: just clear buffered partial data.
+			// Recreating the parser here would tear down listeners registered by
+			// in-flight operations (e.g. the .L support probe), orphaning them.
+			this.parser.reset()
+			return
 		}
 
 		// Create new parser
@@ -642,6 +653,7 @@ class QuartzInstance extends InstanceBase {
 	onConnected() {
 		this.log('info', 'Refreshing data from router')
 		this._listRoutesSupported = null // reconnect may land on different hardware
+		this._listRoutesProbePromise = null // discard any probe still pending from the previous connection
 		this._refreshFromRouter()
 	}
 
@@ -712,10 +724,12 @@ class QuartzInstance extends InstanceBase {
 				resolve(supported)
 			}
 
+			// Only the very next message can be attributed to this probe with any
+			// confidence — there's no request ID to correlate against, so waiting
+			// for a qualifying message anywhere in the full timeout window risks
+			// matching unrelated traffic from another controller on the router.
 			const onMessage = (message) => {
-				if (message.type === MessageType.ACKNOWLEDGE && parseCrosspointGroups(message.data).length > 1) {
-					finish(true)
-				}
+				finish(message.type === MessageType.ACKNOWLEDGE && parseCrosspointGroups(message.data).length > 1)
 			}
 
 			const timer = setTimeout(() => finish(false), LIST_ROUTES_PROBE_TIMEOUT)
@@ -829,6 +843,47 @@ class QuartzInstance extends InstanceBase {
 	getLockStatus(destination) {
 		const destNum = typeof destination === 'string' ? parseInt(destination, 10) : destination
 		return this.locks[destNum]
+	}
+
+	/**
+	 * Interrogates and awaits the lock status for a single destination.
+	 *
+	 * Used by sendLockCommand()'s Toggle branch when local lock state is
+	 * unknown, so toggle direction isn't guessed blind. Falls back to the
+	 * (still unknown) cached value if no reply arrives in time.
+	 *
+	 * @param {number} destNum - Destination ID
+	 * @returns {Promise<number|undefined>} Lock status, or undefined on timeout
+	 */
+	_interrogateLockStatus(destNum) {
+		if (!this.parser) {
+			return Promise.resolve(this.locks[destNum])
+		}
+
+		const parser = this.parser
+
+		return new Promise((resolve) => {
+			let settled = false
+
+			const finish = (status) => {
+				if (settled) return
+				settled = true
+				clearTimeout(timer)
+				parser.off('message', onMessage)
+				resolve(status)
+			}
+
+			const onMessage = (message) => {
+				if (message.type === MessageType.LOCK_STATUS && message.destination === destNum) {
+					finish(message.status)
+				}
+			}
+
+			const timer = setTimeout(() => finish(this.locks[destNum]), LOCK_STATUS_INTERROGATE_TIMEOUT)
+
+			parser.on('message', onMessage)
+			this.sendCommand(buildLockInterrogateCommand(destNum))
+		})
 	}
 
 	/**

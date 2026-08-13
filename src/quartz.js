@@ -495,7 +495,8 @@ class QuartzParser extends EventEmitter {
  *
  * Format: {level}{dest},{srce}[{level}{dest},{srce}...]
  * An interrogate (.I) reply carries exactly one group; a list (.L) reply
- * carries up to 8. Parsing stops at the first group that doesn't parse.
+ * carries up to 8. A group that doesn't parse is skipped so later groups
+ * in the same batch are still applied.
  *
  * @param {string|undefined} data - Data portion of an .A response (after '.A')
  * @returns {{ level: string, destination: number, source: number }[]} Parsed groups
@@ -541,7 +542,8 @@ function parseCrosspointGroups(data) {
 		const source = parseInt(srcStr, 10)
 
 		if (isNaN(destination) || isNaN(source)) {
-			break
+			// Skip this malformed group, but keep parsing the rest of the batch.
+			continue
 		}
 
 		groups.push({ level, destination, source })

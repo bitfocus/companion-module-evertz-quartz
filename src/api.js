@@ -128,10 +128,12 @@ module.exports = {
 		const self = this
 
 		// TCPHelper retries internally and re-fires 'error' on every attempt,
-		// so only log the first occurrence to avoid spamming the log.
-		if (!self._connectionErrorLogged) {
+		// so only log a given error once to avoid spamming the log — but log
+		// again if the failure reason changes, so a new problem isn't hidden
+		// behind an earlier one.
+		if (self._lastConnectionErrorMessage !== error.message) {
 			self.log('error', `Connection error: ${error.message}`)
-			self._connectionErrorLogged = true
+			self._lastConnectionErrorMessage = error.message
 		}
 
 		self.updateStatus(InstanceStatus.ConnectionFailure)
@@ -151,7 +153,7 @@ module.exports = {
 
 		self.log('info', `Connected to ${self.config.host}:${self.config.port}`)
 		self.updateStatus(InstanceStatus.Ok)
-		self._connectionErrorLogged = false
+		self._lastConnectionErrorMessage = null
 
 		// Trigger initial data retrieval
 		self.onConnected()
@@ -289,7 +291,14 @@ module.exports = {
 		let state = lockState
 		if (state === 'T') {
 			const destNum = typeof destination === 'string' ? parseInt(destination, 10) : destination
-			const currentlyLocked = isDestinationLocked(self.locks?.[destNum])
+			// Lock state may still be unknown this early (e.g. right after connect,
+			// before _requestLocks()'s .BA replies arrive) — interrogate and wait for
+			// the real status instead of guessing, so toggle doesn't pick the wrong direction.
+			let knownStatus = self.locks?.[destNum]
+			if (knownStatus === undefined && typeof self._interrogateLockStatus === 'function') {
+				knownStatus = await self._interrogateLockStatus(destNum)
+			}
+			const currentlyLocked = isDestinationLocked(knownStatus)
 			state = currentlyLocked ? 'U' : 'L'
 		} else if (state !== 'U') {
 			state = 'L'

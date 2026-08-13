@@ -20,10 +20,12 @@ module.exports = {
 		const colorWhite = combineRgb(255, 255, 255)
 		const colorRed = combineRgb(255, 0, 0)
 
-		// True if `source` is routed to `destination` on any level currently exposed as an xpt_* variable
+		// True if `source` is routed to `destination` on 'V' or any level exposed as an xpt_* variable.
+		// 'V' is checked unconditionally because index.js._requestCrosspoints always polls it,
+		// regardless of the 'Expose Crosspoint Variables' option.
 		const isSourceRoutedToDestination = (source, destination) => {
-			const levels = getXptVariableLevels(self.config)
-			return levels.some((level) => self.getRoutedSource(level, destination) === source)
+			const levels = new Set(['V', ...getXptVariableLevels(self.config)])
+			return [...levels].some((level) => self.getRoutedSource(level, destination) === source)
 		}
 
 		feedbacks['destination_locked'] = {

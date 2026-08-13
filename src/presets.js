@@ -14,6 +14,7 @@
  */
 
 const { combineRgb } = require('@companion-module/base')
+const { parseLevelsConfig } = require('./constants')
 
 module.exports = {
 	/**
@@ -153,7 +154,9 @@ module.exports = {
 			},
 			steps: [
 				{
-					down: [{ actionId: 'take', options: { levels: 'VABCDEFGH' } }],
+					down: [
+						{ actionId: 'take', options: { levels: parseLevelsConfig(self.config.xpt_levels).join('') } },
+					],
 					up: [],
 				},
 			],

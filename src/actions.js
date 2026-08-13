@@ -13,6 +13,8 @@
  * @see {@link https://github.com/bitfocus/companion-module-evertz-quartz}
  */
 
+const { parseLevelsConfig } = require('./constants')
+
 module.exports = {
 	/**
 	 * Initializes action definitions for the module
@@ -216,7 +218,7 @@ module.exports = {
 					id: 'levels',
 					label: 'Levels:',
 					width: 6,
-					default: 'VABCDEFGH',
+					default: parseLevelsConfig(self.config.xpt_levels).join(''),
 					required: true,
 					useVariables: true,
 				},
