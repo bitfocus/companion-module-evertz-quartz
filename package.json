@@ -1,23 +1,30 @@
 {
 	"name": "evertz-quartz",
-	"version": "3.0.0",
+	"version": "3.1.0-beta.1",
 	"main": "index.js",
 	"scripts": {
+		"build": "companion-module-build",	
 		"test": "echo \"Error: no test specified\" && exit 1",
 		"format": "prettier -w .",
 		"lint:raw": "eslint --ext .ts --ext .js --ignore-pattern dist --ignore-pattern pkg",
 		"lint": "yarn lint:raw ."
 	},
 	"license": "MIT",
+	"engines": {
+		"node": ">=22.0.0",
+		"yarn": "4"
+	},
 	"dependencies": {
-		"@companion-module/base": "~1.10.0"
+		"@companion-module/base": "~1.14.1"
 	},
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/bitfocus/companion-module-evertz-quartz.git"
 	},
 	"devDependencies": {
-		"@companion-module/tools": "^2.6.1",
-		"prettier": "^3.3.2"
-	}
+		"@companion-module/tools": "^2.7.2",
+		"eslint": "^9.39.5",
+		"prettier": "^3.9.6"
+	},
+	"packageManager": "yarn@4.18.0"
 }
