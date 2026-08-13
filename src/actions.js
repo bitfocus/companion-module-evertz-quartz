@@ -210,7 +210,7 @@ module.exports = {
 
 				// Save the selected destination in the correct variable
 				self.setVariableValues({ dst: destination })
-				self.checkFeedbacks('selected_destination')
+				self.checkFeedbacks('selected_destination', 'source_routed_to_selected_destination')
 
 				self.log('info', `Selected Destination for Take: ${destination}`)
 			},

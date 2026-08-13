@@ -20,6 +20,12 @@ module.exports = {
 		const colorWhite = combineRgb(255, 255, 255)
 		const colorRed = combineRgb(255, 0, 0)
 
+		// True if `source` is routed to `destination` on any level currently exposed as an xpt_* variable
+		const isSourceRoutedToDestination = (source, destination) => {
+			const levels = getXptVariableLevels(self.config)
+			return levels.some((level) => self.getRoutedSource(level, destination) === source)
+		}
+
 		feedbacks['destination_locked'] = {
 			type: 'boolean',
 			name: 'Destination Locked',
@@ -113,8 +119,34 @@ module.exports = {
 			],
 			callback: (feedback) => {
 				const src = parseInt(feedback.options.src, 10)
-				const levels = getXptVariableLevels(self.config)
-				return levels.some((level) => self.getRoutedSource(level, feedback.options.dst) === src)
+				return isSourceRoutedToDestination(src, feedback.options.dst)
+			},
+		}
+
+		feedbacks['source_routed_to_selected_destination'] = {
+			type: 'boolean',
+			name: 'Source Routed to Selected Destination',
+			description: 'True when the source is routed to the currently selected destination for Take',
+			defaultStyle: {
+				color: combineRgb(0, 0, 0),
+				bgcolor: combineRgb(255, 255, 0),
+			},
+			options: [
+				{
+					type: 'dropdown',
+					id: 'src',
+					label: 'Source',
+					default: self.CHOICES_SOURCES[0].id,
+					choices: self.CHOICES_SOURCES,
+				},
+			],
+			callback: (feedback) => {
+				const dst = self.getVariableValue('dst')
+				if (!dst) {
+					return false
+				}
+				const src = parseInt(feedback.options.src, 10)
+				return isSourceRoutedToDestination(src, dst)
 			},
 		}
 

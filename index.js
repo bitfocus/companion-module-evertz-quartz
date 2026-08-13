@@ -632,6 +632,7 @@ class QuartzInstance extends InstanceBase {
 		this._refreshTimeout = setTimeout(() => {
 			this.initActions()
 			this.initFeedbacks()
+			this.initPresets()
 			this._refreshTimeout = null
 		}, 100)
 	}
