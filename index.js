@@ -98,12 +98,6 @@ class QuartzInstance extends InstanceBase {
 		this.CHOICES_SOURCES = [{ id: '0', label: 'No Sources Loaded' }]
 
 		/**
-		 * Currently selected destination for "route to selected" workflow
-		 * @type {number|string}
-		 */
-		this.selectedDestination = 0
-
-		/**
 		 * Current crosspoint state - maps destination to source per level
 		 * Structure: { [level]: { [destination]: source } }
 		 * Example: { 'V': { 1: 5, 2: 3 }, 'A': { 1: 5, 2: 3 } }
@@ -835,6 +829,39 @@ class QuartzInstance extends InstanceBase {
 	getLockStatus(destination) {
 		const destNum = typeof destination === 'string' ? parseInt(destination, 10) : destination
 		return this.locks[destNum]
+	}
+
+	/**
+	 * Sets the currently selected destination for the Take workflow
+	 *
+	 * Single write path for destination selection: updates `dst` (the Take
+	 * workflow variable) together with the legacy `destination`/`destination_name`
+	 * aliases, and refreshes the feedbacks that depend on the selection.
+	 *
+	 * @param {number|string} destination - Destination ID
+	 * @returns {void}
+	 */
+	setSelectedDestination(destination) {
+		const entry = this.CHOICES_DESTINATIONS.find((element) => element.id == destination)
+
+		this.setVariableValues({
+			dst: destination,
+			destination: destination,
+			destination_name: entry ? entry.label : '',
+		})
+
+		this.checkFeedbacks('selected_destination', 'source_routed_to_selected_destination')
+	}
+
+	/**
+	 * Sets the currently selected source for the Take workflow
+	 *
+	 * @param {number|string} source - Source ID
+	 * @returns {void}
+	 */
+	setSelectedSource(source) {
+		this.setVariableValues({ src: source })
+		this.checkFeedbacks('selected_source')
 	}
 
 	/**

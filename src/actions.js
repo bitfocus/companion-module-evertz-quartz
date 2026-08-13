@@ -164,33 +164,6 @@ module.exports = {
 		// These support the "select destination, then select source, then take" pattern
 		// =========================================================================
 
-		actions['set_destination'] = {
-			name: 'Set Destination',
-			description: 'Set the Destination for the next Source routing',
-			options: [
-				{
-					type: 'dropdown',
-					label: 'Destination',
-					id: 'destination',
-					default: self.CHOICES_DESTINATIONS[0].id,
-					choices: self.CHOICES_DESTINATIONS,
-				},
-			],
-			callback: async function (action) {
-				let options = action.options
-				let destination = options.destination
-				self.selectedDestination = destination
-
-				// Get the name from CHOICES_DESTINATIONS based on the ID
-				let destination_name = self.CHOICES_DESTINATIONS.find((element) => element.id == destination).label
-
-				let variableObj = {}
-				variableObj.destination = destination
-				variableObj.destination_name = destination_name
-				self.setVariableValues(variableObj)
-			},
-		}
-
 		actions['set_destination_take'] = {
 			name: 'Select Destination for Take',
 			description: 'Set the destination for routing with the Take Action',
@@ -202,15 +175,12 @@ module.exports = {
 					width: 3,
 					required: true,
 					choices: self.CHOICES_DESTINATIONS,
+					default: self.CHOICES_DESTINATIONS[0].id,
 				},
 			],
 			callback: async function (action) {
-				let options = action.options
-				let destination = options.dst
-
-				// Save the selected destination in the correct variable
-				self.setVariableValues({ dst: destination })
-				self.checkFeedbacks('selected_destination', 'source_routed_to_selected_destination')
+				let destination = action.options.dst
+				self.setSelectedDestination(destination)
 
 				self.log('info', `Selected Destination for Take: ${destination}`)
 			},
@@ -230,12 +200,8 @@ module.exports = {
 				},
 			],
 			callback: async function (action) {
-				let options = action.options
-				let source = options.src
-
-				// Save the selected source in the correct variable
-				self.setVariableValues({ src: source })
-				self.checkFeedbacks('selected_source')
+				let source = action.options.src
+				self.setSelectedSource(source)
 
 				self.log('info', `Selected Source for Take: ${source}`)
 			},
@@ -295,7 +261,15 @@ module.exports = {
 			callback: async function (action) {
 				let options = action.options
 				let levels = await self.parseVariablesInString(options.levels)
-				await self.sendRouteCommand(levels, self.selectedDestination, options.src)
+				let dst = self.getVariableValue('dst')
+
+				if (!dst) {
+					const msg = `Route Source to Selected Destination failed: no destination selected (src=${options.src}, levels=${levels})`
+					self.log('error', msg)
+					throw new Error(msg)
+				}
+
+				await self.sendRouteCommand(levels, dst, options.src)
 			},
 		}
 
