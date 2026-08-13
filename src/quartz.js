@@ -487,6 +487,70 @@ class QuartzParser extends EventEmitter {
 }
 
 // =============================================================================
+// Response Helpers
+// =============================================================================
+
+/**
+ * Parses the data portion of an .A response into crosspoint groups.
+ *
+ * Format: {level}{dest},{srce}[{level}{dest},{srce}...]
+ * An interrogate (.I) reply carries exactly one group; a list (.L) reply
+ * carries up to 8. Parsing stops at the first group that doesn't parse.
+ *
+ * @param {string|undefined} data - Data portion of an .A response (after '.A')
+ * @returns {{ level: string, destination: number, source: number }[]} Parsed groups
+ *
+ * @example
+ * parseCrosspointGroups('V001,005V002,003')
+ * // Returns: [{ level: 'V', destination: 1, source: 5 }, { level: 'V', destination: 2, source: 3 }]
+ */
+function parseCrosspointGroups(data) {
+	if (typeof data !== 'string') {
+		return []
+	}
+
+	const groups = []
+	let remaining = data
+
+	while (remaining.length > 0) {
+		const level = remaining[0]
+		if (!VALID_LEVELS.includes(level)) {
+			break
+		}
+
+		remaining = remaining.slice(1)
+
+		const commaIndex = remaining.indexOf(',')
+		if (commaIndex === -1) {
+			break
+		}
+
+		const destStr = remaining.slice(0, commaIndex)
+		remaining = remaining.slice(commaIndex + 1)
+
+		// Source runs until the next level letter or the end of the data
+		let srcEndIndex = 0
+		while (srcEndIndex < remaining.length && !VALID_LEVELS.includes(remaining[srcEndIndex])) {
+			srcEndIndex++
+		}
+
+		const srcStr = remaining.slice(0, srcEndIndex)
+		remaining = remaining.slice(srcEndIndex)
+
+		const destination = parseInt(destStr, 10)
+		const source = parseInt(srcStr, 10)
+
+		if (isNaN(destination) || isNaN(source)) {
+			break
+		}
+
+		groups.push({ level, destination, source })
+	}
+
+	return groups
+}
+
+// =============================================================================
 // Command Builders
 // =============================================================================
 
@@ -694,6 +758,9 @@ module.exports = {
 	CommandPrefix,
 	ResponsePrefix,
 	MessageType,
+
+	// Response helpers
+	parseCrosspointGroups,
 
 	// Command builders
 	buildReadDestinationsCommand,

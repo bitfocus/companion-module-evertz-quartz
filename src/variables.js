@@ -13,7 +13,7 @@
  * @see {@link https://github.com/bitfocus/companion-module-evertz-quartz}
  */
 
-const { parseLevelsConfig } = require('./constants')
+const { getXptVariableLevels } = require('./constants')
 
 module.exports = {
 	/**
@@ -84,18 +84,13 @@ module.exports = {
 
 		// =========================================================================
 		// Crosspoint State Variables
-		// 'V' is always defined. Other levels are added when enable_xpt_variables
-		// is on, per xpt_levels config.
+		// Defined only when enable_xpt_variables is on: 'V' plus every level in
+		// the xpt_levels system.
 		// Resolved source names are only published for 'V', to keep the variable
 		// count down on multi-level routers.
 		// =========================================================================
 
-		const xptLevels = new Set(['V'])
-		if (self.config.enable_xpt_variables) {
-			for (const level of parseLevelsConfig(self.config.xpt_levels)) {
-				xptLevels.add(level)
-			}
-		}
+		const xptLevels = getXptVariableLevels(self.config)
 
 		for (const level of xptLevels) {
 			const levelLower = level.toLowerCase()

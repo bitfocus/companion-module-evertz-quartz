@@ -92,6 +92,30 @@ function parseLevelsConfig(levelsConfig) {
 	return levels.length > 0 ? levels : XPT_LEVEL_SETS[DEFAULT_XPT_LEVEL_SYSTEM].split('')
 }
 
+/**
+ * Levels that get xpt_* variables for the given config.
+ *
+ * Returns an empty list when 'Expose Crosspoint Variables' is off, so that
+ * turning the option off removes every xpt_* variable, video included.
+ * 'V' is always present when the option is on, even if a legacy freeform
+ * xpt_levels string omits it, so xpt_v_* stays available.
+ *
+ * @param {{ enable_xpt_variables?: boolean, xpt_levels?: string }|undefined|null} config - Module config
+ * @returns {string[]} Level characters (e.g. ['V', 'A', 'B'])
+ */
+function getXptVariableLevels(config) {
+	if (!config || !config.enable_xpt_variables) {
+		return []
+	}
+
+	const levels = new Set(['V'])
+	for (const level of parseLevelsConfig(config.xpt_levels)) {
+		levels.add(level)
+	}
+
+	return [...levels]
+}
+
 module.exports = {
 	VALID_LEVELS,
 	XptLevelSystem,
@@ -99,6 +123,7 @@ module.exports = {
 	DEFAULT_XPT_LEVEL_SYSTEM,
 	XPT_LEVEL_CHOICES,
 	parseLevelsConfig,
+	getXptVariableLevels,
 
 	/**
 	 * Human-readable lock labels for Companion variables / router middleware.

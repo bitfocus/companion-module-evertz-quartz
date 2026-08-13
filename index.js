@@ -34,13 +34,20 @@ const constants = require('./src/constants')
 const {
 	QuartzParser,
 	MessageType,
+	parseCrosspointGroups,
 	buildReadNamesCommand,
 	buildInterrogateAllCommand,
 	buildListRoutesAllCommand,
 	buildLockInterrogateAllCommand,
 } = require('./src/quartz')
 
-const { parseLevelsConfig, VALID_LEVELS, lockStatusToLabel } = require('./src/constants')
+const { getXptVariableLevels, lockStatusToLabel } = require('./src/constants')
+
+/**
+ * How long to wait for a .L reply before falling back to .I, in milliseconds.
+ * @type {number}
+ */
+const LIST_ROUTES_PROBE_TIMEOUT = 2000
 
 /**
  * @typedef {Object} ChoiceEntry
@@ -126,6 +133,13 @@ class QuartzInstance extends InstanceBase {
 
 		/** In-flight .L support probe, to dedupe concurrent callers. @type {Promise<boolean>|null} */
 		this._listRoutesProbePromise = null
+
+		/**
+		 * Whether a full refresh (probe + names + crosspoints + locks) is running.
+		 * Polling is skipped while it is, so poll replies can't reach the probe.
+		 * @type {boolean}
+		 */
+		this._refreshInProgress = false
 
 		/**
 		 * Polling interval reference
@@ -371,6 +385,10 @@ class QuartzInstance extends InstanceBase {
 	 * @returns {void}
 	 */
 	_refreshCrosspointNameVariables(source) {
+		if (!getXptVariableLevels(this.config).includes('V')) {
+			return
+		}
+
 		const destinations = this.crosspoints['V']
 		if (!destinations) {
 			return
@@ -490,65 +508,27 @@ class QuartzInstance extends InstanceBase {
 	 * @returns {void}
 	 */
 	_parseInterrogateData(data) {
-		const validLevels = VALID_LEVELS
-		let remaining = data
-		let updated = false
+		const groups = parseCrosspointGroups(data)
+		if (groups.length === 0) {
+			return
+		}
 
-		// Parse potentially multiple level/dest/src groups
-		// Format: {level}{dest},{src}[{level}{dest},{src}...]
-		while (remaining.length > 0) {
-			// First character should be a level
-			const level = remaining[0]
-			if (!validLevels.includes(level)) {
-				// Not a crosspoint response, skip
-				break
+		for (const { level, destination, source } of groups) {
+			// Update internal crosspoint state
+			if (!this.crosspoints[level]) {
+				this.crosspoints[level] = {}
 			}
+			this.crosspoints[level][destination] = source
 
-			remaining = remaining.slice(1)
+			// Update Companion variables to reflect current routing
+			this._updateCrosspointVariable(level, destination, source)
 
-			// Find the comma separating dest from src
-			const commaIndex = remaining.indexOf(',')
-			if (commaIndex === -1) {
-				break
-			}
-
-			const destStr = remaining.slice(0, commaIndex)
-			remaining = remaining.slice(commaIndex + 1)
-
-			// Find end of source number (next level letter or end of string)
-			let srcEndIndex = 0
-			while (srcEndIndex < remaining.length && !validLevels.includes(remaining[srcEndIndex])) {
-				srcEndIndex++
-			}
-
-			const srcStr = remaining.slice(0, srcEndIndex)
-			remaining = remaining.slice(srcEndIndex)
-
-			// Parse and store
-			const destination = parseInt(destStr, 10)
-			const source = parseInt(srcStr, 10)
-
-			if (!isNaN(destination) && !isNaN(source)) {
-				// Update internal crosspoint state
-				if (!this.crosspoints[level]) {
-					this.crosspoints[level] = {}
-				}
-				this.crosspoints[level][destination] = source
-
-				// Update Companion variables to reflect current routing
-				this._updateCrosspointVariable(level, destination, source)
-
-				updated = true
-
-				if (this.config.verbose) {
-					this.log('debug', `Interrogate: Dest ${destination} = Source ${source} (Level ${level})`)
-				}
+			if (this.config.verbose) {
+				this.log('debug', `Interrogate: Dest ${destination} = Source ${source} (Level ${level})`)
 			}
 		}
 
-		if (updated) {
-			this.checkFeedbacks()
-		}
+		this.checkFeedbacks()
 	}
 
 	/**
@@ -564,17 +544,10 @@ class QuartzInstance extends InstanceBase {
 	 * @returns {void}
 	 */
 	_updateCrosspointVariable(level, destination, source) {
-		// 'V' is always tracked
-		// Other levels only update their variable when enable_xpt_variables
-		// is on and the level is in the configured xpt_levels set.
-		if (level !== 'V') {
-			if (!this.config.enable_xpt_variables) {
-				return
-			}
-			const trackedLevels = parseLevelsConfig(this.config.xpt_levels)
-			if (!trackedLevels.includes(level)) {
-				return
-			}
+		// Only levels that have variables defined for them are published — none
+		// at all when enable_xpt_variables is off.
+		if (!getXptVariableLevels(this.config).includes(level)) {
+			return
 		}
 
 		const levelLower = level.toLowerCase()
@@ -679,22 +652,37 @@ class QuartzInstance extends InstanceBase {
 
 	/**
 	 * Refreshes names, crosspoint state, and lock state from the router.
-	 * Probes .L support first so the crosspoint request knows whether to batch.
+	 *
+	 * Probes .L support before anything else is asked for, so the probe window
+	 * stays free of the .A replies that name/crosspoint/lock queries produce and
+	 * so the crosspoint request already knows whether it can batch.
 	 *
 	 * @private
 	 * @returns {Promise<void>}
 	 */
 	async _refreshFromRouter() {
-		this._requestNames()
-		await this._probeListRoutesSupport()
-		this._requestCrosspoints()
-		this._requestLocks()
+		this._refreshInProgress = true
+		try {
+			await this._probeListRoutesSupport()
+			this._requestNames()
+			this._requestCrosspoints()
+			this._requestLocks()
+		} finally {
+			this._refreshInProgress = false
+		}
 	}
 
 	/**
-	 * Probes .L (list routes) support with a single .LV1,- — .A means
-	 * supported, .E/timeout means not. Falls back to .I (always supported)
-	 * when unsupported or unknown. Result is cached until the next connect.
+	 * Probes .L (list routes) support with a single .LV1,-.
+	 *
+	 * Only a multi-route .A settles the probe as supported: that shape can only
+	 * have come from a .L, whereas a bare .A (command ack) or a single-route .A
+	 * (an .I reply from a poll that was already in flight) is indistinguishable
+	 * from unrelated traffic. Anything else — including .E from an unrelated
+	 * command — is left to the timeout, which falls back to .I. Falling back is
+	 * always safe: .I is universally supported, just chattier.
+	 *
+	 * Result is cached until the next connect or router power-up.
 	 *
 	 * @private
 	 * @returns {Promise<boolean>}
@@ -710,6 +698,8 @@ class QuartzInstance extends InstanceBase {
 			return Promise.resolve(false)
 		}
 
+		const parser = this.parser
+
 		this._listRoutesProbePromise = new Promise((resolve) => {
 			let settled = false
 
@@ -717,7 +707,7 @@ class QuartzInstance extends InstanceBase {
 				if (settled) return
 				settled = true
 				clearTimeout(timer)
-				this.parser.off('message', onMessage)
+				parser.off('message', onMessage)
 				this._listRoutesSupported = supported
 				this._listRoutesProbePromise = null
 				this.log(
@@ -728,16 +718,14 @@ class QuartzInstance extends InstanceBase {
 			}
 
 			const onMessage = (message) => {
-				if (message.type === MessageType.ACKNOWLEDGE) {
+				if (message.type === MessageType.ACKNOWLEDGE && parseCrosspointGroups(message.data).length > 1) {
 					finish(true)
-				} else if (message.type === MessageType.ERROR) {
-					finish(false)
 				}
 			}
 
-			const timer = setTimeout(() => finish(false), 2000)
+			const timer = setTimeout(() => finish(false), LIST_ROUTES_PROBE_TIMEOUT)
 
-			this.parser.on('message', onMessage)
+			parser.on('message', onMessage)
 			this.sendCommand('.LV1,-') // sendCommand appends \r
 		})
 
@@ -751,9 +739,16 @@ class QuartzInstance extends InstanceBase {
 	 * the router pushes .BA unsolicited on change; full refresh happens on
 	 * connect/power-up instead (see onConnected()).
 	 *
+	 * Skipped while a refresh is running: it already requests everything a poll
+	 * would, and its .L probe must not see poll replies.
+	 *
 	 * @returns {void}
 	 */
 	poll() {
+		if (this._refreshInProgress) {
+			return
+		}
+
 		this._requestNames()
 		this._requestCrosspoints()
 	}
@@ -796,12 +791,7 @@ class QuartzInstance extends InstanceBase {
 	_requestCrosspoints() {
 		const maxDest = this.config.max_destinations
 
-		const levels = new Set(['V'])
-		if (this.config.enable_xpt_variables) {
-			for (const level of parseLevelsConfig(this.config.xpt_levels)) {
-				levels.add(level)
-			}
-		}
+		const levels = new Set(['V', ...getXptVariableLevels(this.config)])
 
 		const buildAll = this._listRoutesSupported === true ? buildListRoutesAllCommand : buildInterrogateAllCommand
 

@@ -56,7 +56,7 @@ The module exposes variables for use in button text and triggers:
 | ---------------------- | -------------------------------------------- |
 | **Destination Locked** | True when the selected destination is locked |
 
-Crosspoint variables update in real-time when routes change from any source (Companion, panels, other controllers). Which levels are tracked is set by the Level System config (8 / 16 / MAGNUM). This feature can be disabled in config for large routers to reduce variable count. Source/destination name and lock-state variables are always available.
+Crosspoint variables update in real-time when routes change from any source (Companion, panels, other controllers). Which levels get variables is set by the Level System config (8 / 16 / MAGNUM); the video level is always included. Turning **Expose Crosspoint Variables** off removes all `xpt_*` variables, including `xpt_v_*`, to reduce variable count on large routers. Source/destination name and lock-state variables are always available.
 
 ### Config Options
 
@@ -67,7 +67,7 @@ Crosspoint variables update in real-time when routes change from any source (Com
 | **Max Destinations**            | Set to match your router configuration                                         |
 | **Max Sources**                 | Set to match your router configuration                                         |
 | **Polling Interval**            | How often to refresh names and crosspoints (seconds)                           |
-| **Expose Crosspoint Variables** | Enable/disable `xpt_*` variables                                               |
+| **Expose Crosspoint Variables** | Enable/disable all `xpt_*` variables (video level included)                    |
 | **Level System**                | 8 Level, 16 Level, or MAGNUM — controls which levels get variables and polling |
 | **Verbose Logging**             | Log all sent and received data for troubleshooting                             |
 
