@@ -1,8 +1,9 @@
 {
 	"name": "evertz-quartz",
-	"version": "3.0.0",
+	"version": "3.1.0-beta.1",
 	"main": "index.js",
 	"scripts": {
+		"build": "companion-module-build",	
 		"test": "echo \"Error: no test specified\" && exit 1",
 		"format": "prettier -w .",
 		"lint:raw": "eslint --ext .ts --ext .js --ignore-pattern dist --ignore-pattern pkg",
