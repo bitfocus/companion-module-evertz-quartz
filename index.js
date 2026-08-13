@@ -338,11 +338,47 @@ class QuartzInstance extends InstanceBase {
 		}
 
 		// Update or add entry
-		this._updateChoiceList(this.CHOICES_SOURCES, entry, 'source')
+		const changed = this._updateChoiceList(this.CHOICES_SOURCES, entry, 'source')
 
 		this.setVariableValues({
 			[`src_${message.id}_name`]: message.name,
 		})
+
+		// Crosspoints already routed from this source are now showing a stale name
+		if (changed) {
+			this._refreshCrosspointNameVariables(message.id)
+		}
+	}
+
+	/**
+	 * Refreshes the video-level crosspoint name variables for a source
+	 *
+	 * Crosspoint name variables hold the name of the routed source, so they are
+	 * empty or stale whenever the router reports a name for a source that is
+	 * already routed somewhere.
+	 *
+	 * @private
+	 * @param {number} source - Source ID whose name changed
+	 * @returns {void}
+	 */
+	_refreshCrosspointNameVariables(source) {
+		const destinations = this.crosspoints['V']
+		if (!destinations) {
+			return
+		}
+
+		const sourceName = this._getSourceLabel(source)
+		const values = {}
+
+		for (const [destination, routedSource] of Object.entries(destinations)) {
+			if (routedSource === source) {
+				values[`xpt_v_${destination}_name`] = sourceName
+			}
+		}
+
+		if (Object.keys(values).length > 0) {
+			this.setVariableValues(values)
+		}
 	}
 
 	/**
@@ -509,8 +545,8 @@ class QuartzInstance extends InstanceBase {
 	/**
 	 * Updates Companion variables for a crosspoint change
 	 *
-	 * Sets the active source ID variable for the level/destination.
-	 * Only updates if crosspoint variables are enabled in config.
+	 * Sets the active source ID variable for the level/destination, plus the
+	 * resolved source name variable on the video level.
 	 *
 	 * @private
 	 * @param {string} level - Level character (e.g., 'V' for video)
@@ -532,10 +568,17 @@ class QuartzInstance extends InstanceBase {
 			}
 		}
 
-		const idVar = `xpt_${level.toLowerCase()}_${destination}`
-		this.setVariableValues({
-			[idVar]: String(source),
-		})
+		const levelLower = level.toLowerCase()
+		const values = {
+			[`xpt_${levelLower}_${destination}`]: String(source),
+		}
+
+		// Names are only published for the video level
+		if (level === 'V') {
+			values[`xpt_${levelLower}_${destination}_name`] = this._getSourceLabel(source)
+		}
+
+		this.setVariableValues(values)
 	}
 
 	/**
@@ -562,7 +605,7 @@ class QuartzInstance extends InstanceBase {
 	 * @param {ChoiceEntry[]} list - The choice list to update
 	 * @param {ChoiceEntry} entry - The entry to add or update
 	 * @param {string} type - Type name for logging ('destination' or 'source')
-	 * @returns {void}
+	 * @returns {boolean} True when the list changed
 	 */
 	_updateChoiceList(list, entry, _type) {
 		// Remove placeholder if present
@@ -574,16 +617,19 @@ class QuartzInstance extends InstanceBase {
 		const existingIndex = list.findIndex((e) => e.id === entry.id)
 
 		if (existingIndex >= 0) {
-			// Update existing entry if label changed
-			if (list[existingIndex].label !== entry.label) {
-				list[existingIndex] = entry
-				this._scheduleActionsRefresh()
+			// Nothing to do when the label is unchanged
+			if (list[existingIndex].label === entry.label) {
+				return false
 			}
+
+			list[existingIndex] = entry
 		} else {
 			// Add new entry
 			list.push(entry)
-			this._scheduleActionsRefresh()
 		}
+
+		this._scheduleActionsRefresh()
+		return true
 	}
 
 	/**
@@ -747,13 +793,28 @@ class QuartzInstance extends InstanceBase {
 	 * @returns {string} Formatted source identifier
 	 */
 	_getSourceName(id) {
+		const name = this._getSourceLabel(id)
+		return name === '' ? `Src ${id}` : `${name} (${id})`
+	}
+
+	/**
+	 * Gets the router-reported name for a source
+	 *
+	 * Strips the '[id] ' prefix carried by CHOICES_SOURCES labels, so the result
+	 * is the bare name suitable for a Companion variable.
+	 *
+	 * @private
+	 * @param {number} id - Source ID
+	 * @returns {string} Source name, or empty string when the name is unknown
+	 */
+	_getSourceLabel(id) {
 		const entry = this.CHOICES_SOURCES.find((e) => e.id === String(id))
-		if (entry && entry.id !== '0') {
-			const match = entry.label.match(/^\[\d+\]\s*(.*)$/)
-			const name = match ? match[1] : entry.label
-			return `${name} (${id})`
+		if (!entry || entry.id === '0') {
+			return ''
 		}
-		return `Src ${id}`
+
+		const match = entry.label.match(/^\[\d+\]\s*(.*)$/)
+		return match ? match[1] : entry.label
 	}
 }
 

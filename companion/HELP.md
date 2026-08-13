@@ -46,6 +46,7 @@ The module exposes variables for use in button text and triggers:
 | `dst_1_name`, `dst_2_name`, … | Destination port labels from the router                  |
 | `dst_1_lock_state`, …         | Destination lock state (`Unlocked` / `Locked` / `Owned`) |
 | `xpt_v_1`                     | Source ID routed to destination 1 (video level)          |
+| `xpt_v_1_name`                | Source name routed to destination 1 (video level)        |
 | `xpt_a_1`, `xpt_b_1`, …       | Active source IDs for other configured levels            |
 | `xpt_v_2`, etc.               | Crosspoint state for each destination × level            |
 

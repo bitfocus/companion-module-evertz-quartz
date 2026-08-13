@@ -26,6 +26,7 @@ module.exports = {
 	 *   src_{id}_name / dst_{id}_name - Port labels from the router
 	 *   dst_{id}_lock_state - Destination lock state (Unlocked/Locked/Owned)
 	 *   xpt_{level}_{destination} - Active source ID for a crosspoint
+	 *   xpt_v_{destination}_name - Active source name, video level only
 	 *
 	 * @returns {void}
 	 */
@@ -85,6 +86,8 @@ module.exports = {
 		// Crosspoint State Variables
 		// 'V' is always defined. Other levels are added when enable_xpt_variables
 		// is on, per xpt_levels config.
+		// Resolved source names are only published for 'V', to keep the variable
+		// count down on multi-level routers.
 		// =========================================================================
 
 		const xptLevels = new Set(['V'])
@@ -102,6 +105,13 @@ module.exports = {
 					variableId: `xpt_${levelLower}_${dest}`,
 					name: `Crosspoint ${level} - Destination ${dest} - Current Source ID`,
 				})
+
+				if (level === 'V') {
+					variables.push({
+						variableId: `xpt_${levelLower}_${dest}_name`,
+						name: `Crosspoint ${level} - Destination ${dest} - Current Source Name`,
+					})
+				}
 			}
 		}
 
@@ -122,6 +132,10 @@ module.exports = {
 			const levelLower = level.toLowerCase()
 			for (let dest = 1; dest <= maxDest; dest++) {
 				initialValues[`xpt_${levelLower}_${dest}`] = ''
+
+				if (level === 'V') {
+					initialValues[`xpt_${levelLower}_${dest}_name`] = ''
+				}
 			}
 		}
 
