@@ -3,7 +3,7 @@
 	"name": "evertz-quartz",
 	"shortname": "quartz",
 	"description": "Module to control Evertz routers using Quartz protocol",
-	"version": "3.0.0",
+	"version": "3.1.0",
 	"license": "MIT",
 	"repository": "git+https://github.com/bitfocus/companion-module-evertz-quartz.git",
 	"bugs": "https://github.com/bitfocus/companion-module-evertz-quartz/issues",
@@ -33,6 +33,6 @@
 		"entrypoint": "../index.js"
 	},
 	"manufacturer": "Evertz",
-	"products": ["EQX Router", "EQT Router"],
-	"keywords": ["router"]
+	"products": ["Quartz Protocol Routers", "MAGNUM"],
+	"keywords": ["router", "video", "crosspoints"]
 }
