@@ -36,6 +36,7 @@ const {
 	MessageType,
 	buildReadNamesCommand,
 	buildInterrogateAllCommand,
+	buildListRoutesAllCommand,
 	buildLockInterrogateAllCommand,
 } = require('./src/quartz')
 
@@ -116,6 +117,15 @@ class QuartzInstance extends InstanceBase {
 		 * @type {QuartzParser|null}
 		 */
 		this.parser = null
+
+		/**
+		 * Whether the router supports .L (list routes). null = not yet probed.
+		 * @type {boolean|null}
+		 */
+		this._listRoutesSupported = null
+
+		/** In-flight .L support probe, to dedupe concurrent callers. @type {Promise<boolean>|null} */
+		this._listRoutesProbePromise = null
 
 		/**
 		 * Polling interval reference
@@ -279,10 +289,9 @@ class QuartzInstance extends InstanceBase {
 
 			case MessageType.POWER_UP:
 				this.log('info', 'Router power up or reset detected')
-				// Re-request state after router reset
-				this._requestNames()
-				this._requestCrosspoints()
-				this._requestLocks()
+				// Re-request state and re-probe .L support after reset
+				this._listRoutesSupported = null
+				this._refreshFromRouter()
 				break
 
 			case MessageType.ERROR:
@@ -664,22 +673,89 @@ class QuartzInstance extends InstanceBase {
 	 */
 	onConnected() {
 		this.log('info', 'Refreshing data from router')
+		this._listRoutesSupported = null // reconnect may land on different hardware
+		this._refreshFromRouter()
+	}
+
+	/**
+	 * Refreshes names, crosspoint state, and lock state from the router.
+	 * Probes .L support first so the crosspoint request knows whether to batch.
+	 *
+	 * @private
+	 * @returns {Promise<void>}
+	 */
+	async _refreshFromRouter() {
 		this._requestNames()
+		await this._probeListRoutesSupport()
 		this._requestCrosspoints()
 		this._requestLocks()
 	}
 
 	/**
+	 * Probes .L (list routes) support with a single .LV1,- — .A means
+	 * supported, .E/timeout means not. Falls back to .I (always supported)
+	 * when unsupported or unknown. Result is cached until the next connect.
+	 *
+	 * @private
+	 * @returns {Promise<boolean>}
+	 */
+	_probeListRoutesSupport() {
+		if (this._listRoutesSupported !== null) {
+			return Promise.resolve(this._listRoutesSupported)
+		}
+		if (this._listRoutesProbePromise) {
+			return this._listRoutesProbePromise
+		}
+		if (!this.parser) {
+			return Promise.resolve(false)
+		}
+
+		this._listRoutesProbePromise = new Promise((resolve) => {
+			let settled = false
+
+			const finish = (supported) => {
+				if (settled) return
+				settled = true
+				clearTimeout(timer)
+				this.parser.off('message', onMessage)
+				this._listRoutesSupported = supported
+				this._listRoutesProbePromise = null
+				this.log(
+					'info',
+					`Crosspoint polling: .L ${supported ? 'is supported — batching enabled' : 'not supported — using .I'}`,
+				)
+				resolve(supported)
+			}
+
+			const onMessage = (message) => {
+				if (message.type === MessageType.ACKNOWLEDGE) {
+					finish(true)
+				} else if (message.type === MessageType.ERROR) {
+					finish(false)
+				}
+			}
+
+			const timer = setTimeout(() => finish(false), 2000)
+
+			this.parser.on('message', onMessage)
+			this.sendCommand('.LV1,-') // sendCommand appends \r
+		})
+
+		return this._listRoutesProbePromise
+	}
+
+	/**
 	 * Called on polling interval
 	 *
-	 * Refreshes names, crosspoint state, and lock state from the router.
+	 * Refreshes names and crosspoint state. Lock state isn't re-polled here —
+	 * the router pushes .BA unsolicited on change; full refresh happens on
+	 * connect/power-up instead (see onConnected()).
 	 *
 	 * @returns {void}
 	 */
 	poll() {
 		this._requestNames()
 		this._requestCrosspoints()
-		this._requestLocks()
 	}
 
 	/**
@@ -704,6 +780,10 @@ class QuartzInstance extends InstanceBase {
 	 * the optional xpt_* variables). When enable_xpt_variables is on, also
 	 * interrogates every other level configured via xpt_levels.
 	 *
+	 * Uses .L (list routes, up to 8 per response) instead of one .I per
+	 * destination when the router's been probed as supporting it — see
+	 * _probeListRoutesSupport(). Falls back to .I otherwise.
+	 *
 	 * The router responds with .A messages containing the current source
 	 * for each destination.
 	 *
@@ -723,9 +803,11 @@ class QuartzInstance extends InstanceBase {
 			}
 		}
 
+		const buildAll = this._listRoutesSupported === true ? buildListRoutesAllCommand : buildInterrogateAllCommand
+
 		let cmd = ''
 		for (const level of levels) {
-			cmd += buildInterrogateAllCommand(level, maxDest)
+			cmd += buildAll(level, maxDest)
 		}
 		this.sendCommand(cmd)
 	}

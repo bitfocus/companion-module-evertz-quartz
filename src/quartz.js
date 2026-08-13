@@ -657,6 +657,22 @@ function buildInterrogateAllCommand(level, maxDestinations) {
 }
 
 /**
+ * Builds commands to fetch all crosspoints for a level using .L (up to 8
+ * routes per response) instead of one .I per destination.
+ *
+ * @param {string} level - Single level character (e.g., 'V')
+ * @param {number} maxDestinations - Maximum destination ID to query
+ * @returns {string} Formatted Quartz command string
+ */
+function buildListRoutesAllCommand(level, maxDestinations) {
+	let cmd = ''
+	for (let start = 1; start <= maxDestinations; start += 8) {
+		cmd += `${buildListRoutesCommand(level, start)}\r`
+	}
+	return cmd
+}
+
+/**
  * Builds commands to interrogate lock status for all destinations
  *
  * @param {number} maxDestinations - Maximum destination ID to query
@@ -691,5 +707,6 @@ module.exports = {
 	buildLockInterrogateAllCommand,
 	buildInterrogateCommand,
 	buildListRoutesCommand,
+	buildListRoutesAllCommand,
 	buildInterrogateAllCommand,
 }
