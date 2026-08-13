@@ -126,7 +126,14 @@ module.exports = {
 	 */
 	_handleConnectionError(error) {
 		const self = this
-		self.log('error', `Connection error: ${error.message}`)
+
+		// TCPHelper retries internally and re-fires 'error' on every attempt,
+		// so only log the first occurrence to avoid spamming the log.
+		if (!self._connectionErrorLogged) {
+			self.log('error', `Connection error: ${error.message}`)
+			self._connectionErrorLogged = true
+		}
+
 		self.updateStatus(InstanceStatus.ConnectionFailure)
 	},
 
@@ -144,6 +151,7 @@ module.exports = {
 
 		self.log('info', `Connected to ${self.config.host}:${self.config.port}`)
 		self.updateStatus(InstanceStatus.Ok)
+		self._connectionErrorLogged = false
 
 		// Trigger initial data retrieval
 		self.onConnected()
