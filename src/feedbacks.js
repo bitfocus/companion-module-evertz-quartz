@@ -5,7 +5,7 @@
  */
 
 const { combineRgb } = require('@companion-module/base')
-const { isDestinationLocked } = require('./constants')
+const { isDestinationLocked, getXptVariableLevels } = require('./constants')
 
 module.exports = {
 	/**
@@ -40,6 +40,81 @@ module.exports = {
 			callback: (feedback) => {
 				const dest = parseInt(feedback.options.dst, 10)
 				return isDestinationLocked(self.locks?.[dest])
+			},
+		}
+
+		feedbacks['selected_destination'] = {
+			type: 'boolean',
+			name: 'Selected Destination',
+			description: 'True when the destination is the currently selected destination for Take',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: combineRgb(0, 102, 204),
+			},
+			options: [
+				{
+					type: 'dropdown',
+					id: 'dst',
+					label: 'Destination',
+					default: self.CHOICES_DESTINATIONS[0].id,
+					choices: self.CHOICES_DESTINATIONS,
+				},
+			],
+			callback: (feedback) => {
+				return String(self.getVariableValue('dst')) === String(feedback.options.dst)
+			},
+		}
+
+		feedbacks['selected_source'] = {
+			type: 'boolean',
+			name: 'Selected Source',
+			description: 'True when the source is the currently selected source for Take',
+			defaultStyle: {
+				color: colorWhite,
+				bgcolor: combineRgb(0, 153, 0),
+			},
+			options: [
+				{
+					type: 'dropdown',
+					id: 'src',
+					label: 'Source',
+					default: self.CHOICES_SOURCES[0].id,
+					choices: self.CHOICES_SOURCES,
+				},
+			],
+			callback: (feedback) => {
+				return String(self.getVariableValue('src')) === String(feedback.options.src)
+			},
+		}
+
+		feedbacks['source_routed'] = {
+			type: 'boolean',
+			name: 'Source Routed to Destination',
+			description: 'True when the source is routed to the destination on any tracked level',
+			defaultStyle: {
+				color: combineRgb(0, 0, 0),
+				bgcolor: combineRgb(255, 255, 0),
+			},
+			options: [
+				{
+					type: 'dropdown',
+					id: 'src',
+					label: 'Source',
+					default: self.CHOICES_SOURCES[0].id,
+					choices: self.CHOICES_SOURCES,
+				},
+				{
+					type: 'dropdown',
+					id: 'dst',
+					label: 'Destination',
+					default: self.CHOICES_DESTINATIONS[0].id,
+					choices: self.CHOICES_DESTINATIONS,
+				},
+			],
+			callback: (feedback) => {
+				const src = parseInt(feedback.options.src, 10)
+				const levels = getXptVariableLevels(self.config)
+				return levels.some((level) => self.getRoutedSource(level, feedback.options.dst) === src)
 			},
 		}
 
