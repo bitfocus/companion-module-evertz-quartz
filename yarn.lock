@@ -22,9 +22,9 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@companion-module/tools@npm:^2.8.0":
-  version: 2.8.0
-  resolution: "@companion-module/tools@npm:2.8.0"
+"@companion-module/tools@npm:^2.9.1":
+  version: 2.9.1
+  resolution: "@companion-module/tools@npm:2.9.1"
   dependencies:
     "@eslint/js": "npm:^9.39.3"
     eslint-config-prettier: "npm:^10.1.8"
@@ -35,7 +35,7 @@ __metadata:
     semver: "npm:^7.7.4"
     spdx-expression-parse: "npm:^5.0.0"
     tar: "npm:^7.5.9"
-    webpack: "npm:^5.105.2"
+    webpack: "npm:5.109.2"
     webpack-cli: "npm:^6.0.1"
     zx: "npm:^8.8.5"
   peerDependencies:
@@ -61,7 +61,7 @@ __metadata:
     companion-module-check: scripts/check-connection.js
     companion-surface-build: scripts/build-surface.js
     companion-surface-check: scripts/check-surface.js
-  checksum: 10c0/e433ee2ae142d02a3654b9c778a9cf8fde6a2b250c8a6b0219b219cd5e335b0a317f2cb201cd66356bdb6520c28a8eaeee497be7011bcf4232fac07c5659874b
+  checksum: 10c0/77bbad38d5ce735f16bfab16ac2c403d4e2b3676d39dddd409d0acdab0ef78700b07ebdd32f2459ebf5bdf80377211d22451b2aa4487186b5d538078c7a66561
   languageName: node
   linkType: hard
 
@@ -1044,7 +1044,7 @@ __metadata:
   resolution: "evertz-quartz@workspace:."
   dependencies:
     "@companion-module/base": "npm:~1.14.1"
-    "@companion-module/tools": "npm:^2.8.0"
+    "@companion-module/tools": "npm:^2.9.1"
     eslint: "npm:^9.39.5"
     prettier: "npm:^3.9.6"
   languageName: unknown
@@ -2116,7 +2116,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"webpack@npm:^5.105.2":
+"webpack@npm:5.109.2":
   version: 5.109.2
   resolution: "webpack@npm:5.109.2"
   dependencies:
