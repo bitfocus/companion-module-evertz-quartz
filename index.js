@@ -40,6 +40,7 @@ const {
 	buildListRoutesAllCommand,
 	buildLockInterrogateAllCommand,
 	buildLockInterrogateCommand,
+	buildInterrogateCommand,
 } = require('./src/quartz')
 
 const { getXptVariableLevels, lockStatusToLabel } = require('./src/constants')
@@ -56,6 +57,18 @@ const LIST_ROUTES_PROBE_TIMEOUT = 2000
  * @type {number}
  */
 const LOCK_STATUS_INTERROGATE_TIMEOUT = 500
+
+/**
+ * How long to wait for a reply when probing whether the router has a level, in milliseconds.
+ * @type {number}
+ */
+const LEVEL_PROBE_TIMEOUT = 500
+
+/**
+ * .E replies arriving within this window of each other are reported as one log line.
+ * @type {number}
+ */
+const PROTOCOL_ERROR_BURST_WINDOW = 1000
 
 /**
  * @typedef {Object} ChoiceEntry
@@ -137,6 +150,27 @@ class QuartzInstance extends InstanceBase {
 		this._listRoutesProbePromise = null
 
 		/**
+		 * Configured levels the router rejected (.E) when probed, so they aren't polled.
+		 * @type {Set<string>}
+		 */
+		this._unsupportedLevels = new Set()
+
+		/**
+		 * Whether a capability probe is awaiting its reply; an .E then is expected, not reported.
+		 * @type {boolean}
+		 */
+		this._probeInFlight = false
+
+		/** .E replies counted in the current burst. @type {number} */
+		this._protocolErrorCount = 0
+
+		/** Timer that reports the current .E burst. @type {NodeJS.Timeout|null} */
+		this._protocolErrorTimer = null
+
+		/** Size of the last reported .E burst, to avoid repeating an identical warning every poll. @type {number|null} */
+		this._lastProtocolErrorBurst = null
+
+		/**
 		 * Whether a full refresh (probe + names + crosspoints + locks) is running.
 		 * Polling is skipped while it is, so poll replies can't reach the probe.
 		 * @type {boolean}
@@ -203,6 +237,11 @@ class QuartzInstance extends InstanceBase {
 			if (this.RECONNECT_INTERVAL) {
 				clearInterval(this.RECONNECT_INTERVAL)
 				this.RECONNECT_INTERVAL = null
+			}
+
+			if (this._protocolErrorTimer) {
+				clearTimeout(this._protocolErrorTimer)
+				this._protocolErrorTimer = null
 			}
 
 			// Clean up parser
@@ -571,15 +610,43 @@ class QuartzInstance extends InstanceBase {
 	/**
 	 * Handles a protocol error message
 	 *
-	 * Logs the error for debugging. Common cause is max_sources
-	 * or max_destinations being set higher than router capacity.
+	 * .E carries no indication of which command it rejects, and a poll can
+	 * draw hundreds of them, so they're counted and reported once per burst.
+	 * A burst the same size as the last one is a persistent config mismatch
+	 * repeating every poll, so it's only logged at debug level.
 	 *
 	 * @private
 	 * @param {ErrorMessage} message - Error message
 	 * @returns {void}
 	 */
-	_handleProtocolError(_message) {
-		this.log('error', 'Received error from router. Are max_destinations or max_sources too high?')
+	_handleProtocolError(message) {
+		if (this._probeInFlight) {
+			return
+		}
+
+		if (this.config.verbose) {
+			this.log('debug', `Router error reply: ${message.raw}`)
+		}
+
+		this._protocolErrorCount++
+		if (this._protocolErrorTimer) {
+			return
+		}
+
+		this._protocolErrorTimer = setTimeout(() => {
+			const count = this._protocolErrorCount
+			this._protocolErrorCount = 0
+			this._protocolErrorTimer = null
+
+			const repeated = count === this._lastProtocolErrorBurst
+			this._lastProtocolErrorBurst = count
+
+			this.log(
+				repeated ? 'debug' : 'warn',
+				`Router rejected ${count} command${count === 1 ? '' : 's'} (.E). Check that Max Destinations and Max Sources ` +
+					`don't exceed the router's size. Enable Verbose Logging to see which commands are rejected.`,
+			)
+		}, PROTOCOL_ERROR_BURST_WINDOW)
 	}
 
 	/**
@@ -654,6 +721,7 @@ class QuartzInstance extends InstanceBase {
 		this.log('info', 'Refreshing data from router')
 		this._listRoutesSupported = null // reconnect may land on different hardware
 		this._listRoutesProbePromise = null // discard any probe still pending from the previous connection
+		this._lastProtocolErrorBurst = null
 		this._refreshFromRouter()
 	}
 
@@ -671,6 +739,7 @@ class QuartzInstance extends InstanceBase {
 		this._refreshInProgress = true
 		try {
 			await this._probeListRoutesSupport()
+			await this._probeLevelSupport()
 			this._requestNames()
 			this._requestCrosspoints()
 			this._requestLocks()
@@ -715,6 +784,7 @@ class QuartzInstance extends InstanceBase {
 				settled = true
 				clearTimeout(timer)
 				parser.off('message', onMessage)
+				this._probeInFlight = false
 				this._listRoutesSupported = supported
 				this._listRoutesProbePromise = null
 				this.log(
@@ -734,11 +804,84 @@ class QuartzInstance extends InstanceBase {
 
 			const timer = setTimeout(() => finish(false), LIST_ROUTES_PROBE_TIMEOUT)
 
+			this._probeInFlight = true
 			parser.on('message', onMessage)
 			this.sendCommand('.LV1,-') // sendCommand appends \r
 		})
 
 		return this._listRoutesProbePromise
+	}
+
+	/**
+	 * Probes which of the configured crosspoint levels the router actually has,
+	 * by interrogating destination 1 on each one in turn.
+	 *
+	 * The Level System config selects a whole family (e.g. 8 levels, V–G), but a
+	 * router may only have some of them configured; every interrogation of a
+	 * missing level is answered with .E, so polling them would flood the log.
+	 * A level that answers .E is skipped when polling. One that doesn't answer
+	 * in time is kept, since polling it is what the module did before probing.
+	 *
+	 * @private
+	 * @returns {Promise<void>}
+	 */
+	async _probeLevelSupport() {
+		this._unsupportedLevels = new Set()
+		if (!this.parser) {
+			return
+		}
+
+		const parser = this.parser
+
+		for (const level of getXptVariableLevels(this.config)) {
+			if (level === 'V') {
+				continue
+			}
+
+			const supported = await new Promise((resolve) => {
+				let settled = false
+
+				const finish = (result) => {
+					if (settled) return
+					settled = true
+					clearTimeout(timer)
+					parser.off('message', onMessage)
+					this._probeInFlight = false
+					resolve(result)
+				}
+
+				// Unsolicited .U/.BA traffic, and acks for other levels, can arrive
+				// in between, so wait for a reply that's clearly about this level.
+				const onMessage = (message) => {
+					if (message.type === MessageType.ERROR) {
+						finish(false)
+					} else if (
+						message.type === MessageType.ACKNOWLEDGE &&
+						parseCrosspointGroups(message.data).some((group) => group.level === level)
+					) {
+						finish(true)
+					}
+				}
+
+				const timer = setTimeout(() => finish(true), LEVEL_PROBE_TIMEOUT)
+
+				this._probeInFlight = true
+				parser.on('message', onMessage)
+				this.sendCommand(buildInterrogateCommand(level, 1))
+			})
+
+			if (!supported) {
+				this._unsupportedLevels.add(level)
+			}
+		}
+
+		if (this._unsupportedLevels.size > 0) {
+			this.log(
+				'info',
+				`Router has no level ${[...this._unsupportedLevels].join(', ')} — not polling ${this._unsupportedLevels.size === 1 ? 'it' : 'them'}. ` +
+					`Choose a smaller Level System to remove the unused xpt_* variables.`,
+			)
+		}
 	}
 
 	/**
@@ -782,7 +925,8 @@ class QuartzInstance extends InstanceBase {
 	 * Always interrogates the base 'V' level (matches this module's original
 	 * behavior — video routing state is core functionality independent of
 	 * the optional xpt_* variables). When enable_xpt_variables is on, also
-	 * interrogates every other level configured via xpt_levels.
+	 * interrogates every other level configured via xpt_levels, except those
+	 * the router rejected when probed (see _probeLevelSupport()).
 	 *
 	 * Uses .L (list routes, up to 8 per response) instead of one .I per
 	 * destination when the router's been probed as supporting it — see
@@ -801,6 +945,9 @@ class QuartzInstance extends InstanceBase {
 		const maxDest = this.config.max_destinations
 
 		const levels = new Set(['V', ...getXptVariableLevels(this.config)])
+		for (const level of this._unsupportedLevels) {
+			levels.delete(level)
+		}
 
 		const buildAll = this._listRoutesSupported === true ? buildListRoutesAllCommand : buildInterrogateAllCommand
 
