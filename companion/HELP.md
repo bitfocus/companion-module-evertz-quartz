@@ -78,6 +78,12 @@ Crosspoint variables update in real-time when routes change from any source (Com
 
 Source and destination names refresh automatically on connection and at the polling interval. Crosspoint state also updates in real-time via router notifications.
 
+### Troubleshooting
+
+**"Router rejected N commands (.E)"** — the router answered some queries with an error. This usually means **Max Destinations** or **Max Sources** is set higher than the router's size. Turn on **Verbose Logging** to see which commands get rejected.
+
+Levels in the selected **Level System** that the router doesn't have are detected on connect and aren't polled. Choose a smaller Level System to remove their `xpt_*` variables.
+
 ### Salvo IDs
 
 To view salvo IDs on MAGNUM systems without downloading the config file, visit:
